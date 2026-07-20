@@ -19,7 +19,10 @@ import fetch from 'node-fetch';
 import path from 'path';
 
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
-const MODEL         = 'claude-sonnet-4-6';
+const MODEL         = process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514';
+
+// Max file size sent to Claude (base64 inflates ~33%; API request limit is ~32MB)
+const MAX_FILE_BYTES = 20 * 1024 * 1024;
 
 // ── File type detection ───────────────────────────────────────────────────────
 
@@ -195,6 +198,10 @@ If nothing useful can be extracted, return:
  * @returns {Promise<AnalysisResult>}
  */
 export async function analyzeDocument(buffer, fileName, mimeType, ncPath = '') {
+  if (buffer.length > MAX_FILE_BYTES) {
+    throw new Error(`File too large for analysis: ${(buffer.length / 1024 / 1024).toFixed(1)}MB (max ${MAX_FILE_BYTES / 1024 / 1024}MB)`);
+  }
+
   // Build the appropriate content block for this file type
   const contentBlock = await buildContentBlock(buffer, fileName, mimeType);
 
@@ -231,8 +238,9 @@ Extract all structured information and return JSON as instructed.`,
       headers,
       body: JSON.stringify({
         model:      MODEL,
-        max_tokens: 2048,
-        system:     ANALYSIS_SYSTEM_PROMPT,
+        max_tokens: 4096,
+        // Static system prompt — cached across document analyses
+        system:     [{ type: 'text', text: ANALYSIS_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
         messages:   [userMessage],
       }),
     });
@@ -245,7 +253,9 @@ Extract all structured information and return JSON as instructed.`,
     }
 
     const rawText = data.content?.find(b => b.type === 'text')?.text || '{}';
-    responseJson  = JSON.parse(rawText);
+    // Strip markdown fences Claude sometimes wraps around JSON
+    const cleaned = rawText.replace(/^\s*```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+    responseJson  = JSON.parse(cleaned);
   } catch (err) {
     if (err instanceof SyntaxError) {
       // JSON parse failure — return safe fallback

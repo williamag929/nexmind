@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NexMind</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
   --bg: #080c14;
@@ -28,8 +28,8 @@
   --text: #e2e8f0;
   --text-dim: #7d92b0;
   --text-muted: #3d5070;
-  --sans: 'Outfit', sans-serif;
-  --mono: 'DM Mono', monospace;
+  --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', 'SF Mono', monospace;
   --radius: 10px;
   --radius-sm: 6px;
 }
@@ -393,6 +393,63 @@ body {
   width: fit-content;
   font-weight: 500;
 }
+
+/* ── Memory review card ── */
+.memory-review {
+  margin-left: 32px;
+  margin-top: 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  max-width: 480px;
+}
+
+.memory-review-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.memory-review-header .ic { color: var(--accent2); }
+
+.memory-review-list { padding: 4px; max-height: 220px; overflow-y: auto; }
+.memory-review-list::-webkit-scrollbar { width: 4px; }
+.memory-review-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+.review-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.review-row:hover { background: var(--surface3); }
+.review-row input[type=checkbox] { accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+.review-row-icon { color: var(--text-muted); display: flex; flex-shrink: 0; }
+.review-row-main { display: flex; flex-direction: column; min-width: 0; }
+.review-row-title { font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.review-row-sub { font-size: 10.5px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.review-row-sub em { font-style: normal; color: var(--accent2); }
+
+.memory-review-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+}
+
+.memory-review-actions .btn { padding: 5px 12px; font-size: 12px; }
 
 .thinking {
   display: flex;
@@ -798,7 +855,11 @@ textarea#chatInput::placeholder { color: var(--text-muted); }
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.1s;
 }
+
+.cal-event:hover { background: rgba(59,130,246,0.25); }
 
 .upcoming-events { display: flex; flex-direction: column; gap: 8px; }
 
@@ -861,6 +922,18 @@ textarea#chatInput::placeholder { color: var(--text-muted); }
 }
 
 .task-card:hover { border-color: var(--border2); transform: translateY(-1px); }
+.task-card[draggable="true"] { cursor: grab; }
+.task-card.dragging { opacity: 0.4; cursor: grabbing; }
+
+.task-col-body { transition: background 0.1s, outline 0.1s; }
+.task-col-body.drag-over {
+  background: var(--accent-glow);
+  outline: 2px dashed var(--accent);
+  outline-offset: -4px;
+  border-radius: var(--radius-sm);
+}
+
+.task-col-empty { color: var(--text-muted); font-size: 12px; padding: 10px; text-align: center; }
 .task-name { font-size: 13px; font-weight: 500; margin-bottom: 6px; }
 .task-meta { display: flex; gap: 6px; flex-wrap: wrap; }
 
@@ -876,11 +949,67 @@ textarea#chatInput::placeholder { color: var(--text-muted); }
   font-size: 13px;
 }
 
+.graph-wrap { position: relative; }
+
 #graphCanvas {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
 }
+
+#graph3d {
+  width: 800px;
+  height: 500px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #04060c;
+  display: none;
+}
+
+.graph-loading-3d, .graph-empty-3d {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+  padding: 20px;
+}
+
+.graph-loading-3d .ic { animation: graphSpin 1.4s linear infinite; color: var(--accent2); }
+
+@keyframes graphSpin { to { transform: rotate(360deg); } }
+
+.graph-panel {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 240px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  animation: modalIn 0.15s ease;
+}
+
+.graph-panel-header { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.graph-panel-title { font-size: 13px; font-weight: 600; }
+.graph-panel-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.graph-panel-rel-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin: 10px 0 6px; }
+.graph-panel-rel-list { display: flex; flex-direction: column; gap: 4px; max-height: 120px; overflow-y: auto; margin-bottom: 10px; }
+.graph-panel-rel-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-dim); }
+.graph-panel-rel-item .ic { color: var(--text-muted); flex-shrink: 0; }
+.graph-panel-rel-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.graph-panel-rel-item em { font-style: normal; margin-left: auto; color: var(--text-muted); font-size: 10px; flex-shrink: 0; }
+.graph-panel-actions { display: flex; gap: 6px; }
+.graph-panel-actions .btn { flex: 1; padding: 6px 8px; font-size: 11px; justify-content: center; }
+.graph-panel-empty { font-size: 11px; color: var(--text-muted); margin: 8px 0; }
 
 /* ── Modal ── */
 .modal-overlay {
@@ -991,7 +1120,148 @@ textarea#chatInput::placeholder { color: var(--text-muted); }
   to { opacity:1; transform: translateX(0); }
 }
 
+/* ── Icons ── */
+.ic { flex-shrink: 0; vertical-align: -2px; }
+.nav-btn .ic, .view-title .ic { color: inherit; }
+[data-ic] { display: inline-flex; align-items: center; }
+
+/* ── Home dashboard ── */
+.home-content { max-width: 1100px; margin: 0 auto; width: 100%; }
+
+.home-greeting { margin-bottom: 4px; font-size: 24px; font-weight: 800; letter-spacing: -0.02em; }
+.home-date { font-size: 13px; color: var(--text-dim); margin-bottom: 24px; }
+
+.home-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.home-stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.home-stat:hover { border-color: var(--border2); transform: translateY(-1px); }
+
+.home-stat-top { display: flex; align-items: center; justify-content: space-between; color: var(--text-muted); }
+.home-stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+.home-stat-value { font-size: 24px; font-weight: 700; font-family: var(--mono); letter-spacing: -0.02em; }
+.home-stat-sub { font-size: 11px; color: var(--text-muted); }
+
+.home-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.home-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.home-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.home-panel-header .ic { color: var(--text-muted); }
+
+.home-panel-link {
+  background: none; border: none; color: var(--accent2);
+  font-family: var(--sans); font-size: 11px; font-weight: 600;
+  cursor: pointer; text-transform: none; letter-spacing: 0;
+}
+.home-panel-link:hover { text-decoration: underline; }
+
+.home-panel-body { padding: 8px; min-height: 120px; max-height: 260px; overflow-y: auto; }
+.home-panel-body::-webkit-scrollbar { width: 4px; }
+.home-panel-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+.home-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.home-row:hover { background: var(--surface2); }
+
+.home-row-icon {
+  width: 28px; height: 28px;
+  border-radius: 7px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.home-row-icon.accent { color: var(--accent2); background: var(--accent-glow); border-color: transparent; }
+.home-row-icon.green { color: var(--green); background: var(--green-glow); border-color: transparent; }
+.home-row-icon.red { color: var(--red); background: var(--red-glow); border-color: transparent; }
+.home-row-icon.orange { color: var(--orange); background: rgba(245,158,11,0.1); border-color: transparent; }
+
+.home-row-main { flex: 1; min-width: 0; }
+.home-row-title { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-row-meta { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+.home-row-side { font-size: 12px; font-family: var(--mono); color: var(--text-dim); flex-shrink: 0; }
+.home-row-side.income { color: var(--green); }
+.home-row-side.expense { color: var(--red); }
+.home-row-side.overdue { color: var(--red); font-weight: 600; }
+
+.home-empty { padding: 24px; text-align: center; font-size: 12px; color: var(--text-muted); }
+
+.home-ask {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 8px 8px 8px 16px;
+  align-items: center;
+  transition: border-color 0.15s;
+}
+
+.home-ask:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow2); }
+.home-ask .ic { color: var(--text-muted); }
+
+.home-ask input {
+  flex: 1; background: none; border: none; outline: none;
+  color: var(--text); font-family: var(--sans); font-size: 14px;
+}
+.home-ask input::placeholder { color: var(--text-muted); }
+
 /* Responsive */
+@media (max-width: 900px) {
+  .home-stats { grid-template-columns: 1fr 1fr; }
+  .home-grid { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 768px) {
   .conv-sidebar { display: none; }
   .finance-grid { grid-template-columns: 1fr; }
@@ -1005,19 +1275,20 @@ textarea#chatInput::placeholder { color: var(--text-muted); }
 <!-- Topbar -->
 <div class="topbar">
   <div class="logo">
-    <div class="logo-icon">⬡</div>
+    <div class="logo-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linejoin="round"><path d="M12 2l8.66 5v10L12 22l-8.66-5V7z"/></svg></div>
     NexMind
   </div>
 
   <nav class="nav">
-    <button class="nav-btn active" data-view="chat" onclick="switchView('chat')">💬 <span data-i="chat">Chat</span></button>
-    <button class="nav-btn" data-view="contacts" onclick="switchView('contacts')">👤 <span data-i="contacts">Contactos</span></button>
-    <button class="nav-btn" data-view="companies" onclick="switchView('companies')">🏢 <span data-i="companies">Empresas</span></button>
-    <button class="nav-btn" data-view="calendar" onclick="switchView('calendar')">📅 <span data-i="calendar">Agenda</span></button>
-    <button class="nav-btn" data-view="tasks" onclick="switchView('tasks')">✅ <span data-i="tasks">Tareas</span></button>
-    <button class="nav-btn" data-view="finance" onclick="switchView('finance')">💰 <span data-i="finance">Finanzas</span></button>
-    <button class="nav-btn" data-view="projects" onclick="switchView('projects')">📁 <span data-i="projects">Proyectos</span></button>
-    <button class="nav-btn" data-view="graph" onclick="switchView('graph')">🔗 <span data-i="graph">Grafo</span></button>
+    <button class="nav-btn active" data-view="home" onclick="switchView('home')"><span data-ic="home"></span> <span data-i="home">Inicio</span></button>
+    <button class="nav-btn" data-view="chat" onclick="switchView('chat')"><span data-ic="chat"></span> <span data-i="chat">Chat</span></button>
+    <button class="nav-btn" data-view="contacts" onclick="switchView('contacts')"><span data-ic="user"></span> <span data-i="contacts">Contactos</span></button>
+    <button class="nav-btn" data-view="companies" onclick="switchView('companies')"><span data-ic="building"></span> <span data-i="companies">Empresas</span></button>
+    <button class="nav-btn" data-view="calendar" onclick="switchView('calendar')"><span data-ic="calendar"></span> <span data-i="calendar">Agenda</span></button>
+    <button class="nav-btn" data-view="tasks" onclick="switchView('tasks')"><span data-ic="check"></span> <span data-i="tasks">Tareas</span></button>
+    <button class="nav-btn" data-view="finance" onclick="switchView('finance')"><span data-ic="wallet"></span> <span data-i="finance">Finanzas</span></button>
+    <button class="nav-btn" data-view="projects" onclick="switchView('projects')"><span data-ic="folder"></span> <span data-i="projects">Proyectos</span></button>
+    <button class="nav-btn" data-view="graph" onclick="switchView('graph')"><span data-ic="graph"></span> <span data-i="graph">Grafo</span></button>
   </nav>
 
   <div class="topbar-right">
@@ -1035,8 +1306,62 @@ textarea#chatInput::placeholder { color: var(--text-muted); }
 <!-- Main -->
 <div class="main">
 
+  <!-- ── HOME (daily briefing) ── -->
+  <div class="view active" id="view-home">
+    <div class="data-view">
+      <div class="view-content">
+        <div class="home-content">
+          <div class="home-greeting" id="homeGreeting"></div>
+          <div class="home-date" id="homeDate"></div>
+
+          <div class="home-stats" id="homeStats"></div>
+
+          <div class="home-grid">
+            <div class="home-panel">
+              <div class="home-panel-header">
+                <span style="display:flex;align-items:center;gap:6px"><span data-ic="calendar" data-size="13"></span> <span data-i="home_today">Agenda de hoy</span></span>
+                <button class="home-panel-link" onclick="switchView('calendar')" data-i="see_all">Ver todo</button>
+              </div>
+              <div class="home-panel-body" id="homeEvents"></div>
+            </div>
+
+            <div class="home-panel">
+              <div class="home-panel-header">
+                <span style="display:flex;align-items:center;gap:6px"><span data-ic="check" data-size="13"></span> <span data-i="home_tasks">Tareas pendientes</span></span>
+                <button class="home-panel-link" onclick="switchView('tasks')" data-i="see_all">Ver todo</button>
+              </div>
+              <div class="home-panel-body" id="homeTasks"></div>
+            </div>
+
+            <div class="home-panel">
+              <div class="home-panel-header">
+                <span style="display:flex;align-items:center;gap:6px"><span data-ic="wallet" data-size="13"></span> <span data-i="home_finance">Movimientos recientes</span></span>
+                <button class="home-panel-link" onclick="switchView('finance')" data-i="see_all">Ver todo</button>
+              </div>
+              <div class="home-panel-body" id="homeTx"></div>
+            </div>
+
+            <div class="home-panel">
+              <div class="home-panel-header">
+                <span style="display:flex;align-items:center;gap:6px"><span data-ic="folder" data-size="13"></span> <span data-i="home_projects">Proyectos activos</span></span>
+                <button class="home-panel-link" onclick="switchView('projects')" data-i="see_all">Ver todo</button>
+              </div>
+              <div class="home-panel-body" id="homeProjects"></div>
+            </div>
+          </div>
+
+          <div class="home-ask">
+            <span data-ic="chat" data-size="15"></span>
+            <input id="homeAskInput" onkeydown="if(event.key==='Enter')homeAsk()" placeholder="">
+            <button class="send-btn" onclick="homeAsk()"><span data-ic="arrow-up" data-size="15"></span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ── CHAT ── -->
-  <div class="view active" id="view-chat">
+  <div class="view" id="view-chat">
     <div class="chat-layout">
       <div class="conv-sidebar">
         <div class="conv-sidebar-header">
@@ -1047,7 +1372,7 @@ textarea#chatInput::placeholder { color: var(--text-muted); }
       <div class="chat-main">
         <div class="messages" id="messages">
           <div class="empty-chat" id="emptyChat">
-            <div class="empty-icon">⬡</div>
+            <div class="empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 2l8.66 5v10L12 22l-8.66-5V7z"/></svg></div>
             <div class="empty-title">NexMind</div>
             <div class="empty-sub" data-i="empty_sub">Tu cerebro personal con memoria. Habla naturalmente y el sistema aprende, conecta y recuerda.</div>
             <div class="chips" id="suggestionChips"></div>
@@ -1057,8 +1382,8 @@ textarea#chatInput::placeholder { color: var(--text-muted); }
           <div class="input-box">
             <div class="input-row">
               <textarea id="chatInput" rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
-              <button class="send-btn" id="sendBtn" onclick="sendMessage()">↑</button>
-              <button class="stop-btn" id="stopBtn" onclick="stopStream()">■</button>
+              <button class="send-btn" id="sendBtn" onclick="sendMessage()"><span data-ic="arrow-up" data-size="16"></span></button>
+              <button class="stop-btn" id="stopBtn" onclick="stopStream()"><span data-ic="square" data-size="12"></span></button>
             </div>
             <div class="input-hint" data-i="input_hint">Enter para enviar · Shift+Enter nueva línea · La memoria se actualiza automáticamente</div>
           </div>
@@ -1071,7 +1396,7 @@ textarea#chatInput::placeholder { color: var(--text-muted); }
   <div class="view" id="view-contacts">
     <div class="data-view">
       <div class="view-header">
-        <div class="view-title">👤 <span data-i="contacts">Contactos</span></div>
+        <div class="view-title"><span data-ic="user" data-size="18"></span> <span data-i="contacts">Contactos</span></div>
         <div class="view-actions">
           <input class="search-input" type="text" placeholder="Buscar..." oninput="filterEntities('contact', this.value)">
           <button class="btn btn-primary" onclick="openModal('contact')">+ <span data-i="add">Agregar</span></button>
@@ -1087,7 +1412,7 @@ textarea#chatInput::placeholder { color: var(--text-muted); }
   <div class="view" id="view-companies">
     <div class="data-view">
       <div class="view-header">
-        <div class="view-title">🏢 <span data-i="companies">Empresas</span></div>
+        <div class="view-title"><span data-ic="building" data-size="18"></span> <span data-i="companies">Empresas</span></div>
         <div class="view-actions">
           <input class="search-input" type="text" placeholder="Buscar..." oninput="filterEntities('company', this.value)">
           <button class="btn btn-primary" onclick="openModal('company')">+ <span data-i="add">Agregar</span></button>
@@ -1103,11 +1428,11 @@ textarea#chatInput::placeholder { color: var(--text-muted); }
   <div class="view" id="view-calendar">
     <div class="data-view">
       <div class="view-header">
-        <div class="view-title">📅 <span data-i="calendar">Agenda</span></div>
+        <div class="view-title"><span data-ic="calendar" data-size="18"></span> <span data-i="calendar">Agenda</span></div>
         <div class="view-actions">
-          <button class="btn btn-ghost" onclick="prevMonth()">←</button>
+          <button class="btn btn-ghost" onclick="prevMonth()"><span data-ic="chevron-left" data-size="14"></span></button>
           <span id="calMonthLabel" style="font-weight:600;min-width:140px;text-align:center"></span>
-          <button class="btn btn-ghost" onclick="nextMonth()">→</button>
+          <button class="btn btn-ghost" onclick="nextMonth()"><span data-ic="chevron-right" data-size="14"></span></button>
           <button class="btn btn-primary" onclick="openModal('event')">+ <span data-i="add">Agregar</span></button>
         </div>
       </div>
@@ -1132,7 +1457,7 @@ textarea#chatInput::placeholder { color: var(--text-muted); }
   <div class="view" id="view-tasks">
     <div class="data-view">
       <div class="view-header">
-        <div class="view-title">✅ <span data-i="tasks">Tareas</span></div>
+        <div class="view-title"><span data-ic="check" data-size="18"></span> <span data-i="tasks">Tareas</span></div>
         <div class="view-actions">
           <button class="btn btn-primary" onclick="openModal('task')">+ <span data-i="add">Agregar</span></button>
         </div>
@@ -1147,7 +1472,7 @@ textarea#chatInput::placeholder { color: var(--text-muted); }
   <div class="view" id="view-finance">
     <div class="data-view">
       <div class="view-header">
-        <div class="view-title">💰 <span data-i="finance">Finanzas</span></div>
+        <div class="view-title"><span data-ic="wallet" data-size="18"></span> <span data-i="finance">Finanzas</span></div>
         <div class="view-actions">
           <button class="btn btn-primary" onclick="openModal('transaction')">+ <span data-i="add_tx">Agregar transacción</span></button>
         </div>
@@ -1164,7 +1489,7 @@ textarea#chatInput::placeholder { color: var(--text-muted); }
   <div class="view" id="view-projects">
     <div class="data-view">
       <div class="view-header">
-        <div class="view-title">📁 <span data-i="projects">Proyectos</span></div>
+        <div class="view-title"><span data-ic="folder" data-size="18"></span> <span data-i="projects">Proyectos</span></div>
         <div class="view-actions">
           <button class="btn btn-primary" onclick="openModal('project')">+ <span data-i="add">Agregar</span></button>
         </div>
@@ -1179,14 +1504,23 @@ textarea#chatInput::placeholder { color: var(--text-muted); }
   <div class="view" id="view-graph">
     <div class="data-view">
       <div class="view-header">
-        <div class="view-title">🔗 <span data-i="graph">Grafo de relaciones</span></div>
+        <div class="view-title"><span data-ic="graph" data-size="18"></span> <span data-i="graph">Grafo de relaciones</span></div>
         <div class="view-actions">
-          <button class="btn btn-ghost" onclick="renderGraph()">↻ <span data-i="refresh">Actualizar</span></button>
+          <div class="lang-toggle" id="graphModeToggle">
+            <button class="lang-btn active" data-mode="2d" onclick="setGraphMode('2d')">2D</button>
+            <button class="lang-btn" data-mode="3d" onclick="setGraphMode('3d')">3D</button>
+          </div>
+          <button class="btn btn-ghost" onclick="renderGraph()"><span data-ic="refresh" data-size="13"></span> <span data-i="refresh">Actualizar</span></button>
         </div>
       </div>
       <div class="view-content" style="display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;">
-        <canvas id="graphCanvas" width="800" height="500"></canvas>
-        <div style="font-size:12px;color:var(--text-muted);" data-i="graph_hint">Cada nodo es una entidad. Las líneas representan relaciones.</div>
+        <div class="graph-wrap">
+          <canvas id="graphCanvas" width="800" height="500"></canvas>
+          <div id="graph3d"></div>
+          <div class="graph-panel" id="graphPanel" style="display:none"></div>
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);" data-i="graph_hint" id="graphHint2d">Cada nodo es una entidad. Las líneas representan relaciones. Haz clic en un nodo para ver detalles.</div>
+        <div style="font-size:12px;color:var(--text-muted);display:none" data-i="graph_hint_3d" id="graphHint3d">Arrastra para rotar el universo · Rueda del mouse para zoom · Clic en un nodo para ver detalles.</div>
       </div>
     </div>
   </div>
@@ -1209,6 +1543,77 @@ textarea#chatInput::placeholder { color: var(--text-muted); }
 <div class="toast-container" id="toasts"></div>
 
 <script>
+// ── Icon system (lucide-style inline SVG) ──────────────────
+const ICONS = {
+  home: '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
+  chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  user: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  building: '<rect width="16" height="20" x="4" y="2" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01"/>',
+  calendar: '<rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/>',
+  check: '<path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
+  checkmark: '<path d="M20 6 9 17l-5-5"/>',
+  wallet: '<path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>',
+  folder: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+  graph: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/>',
+  file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>',
+  mail: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
+  phone: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
+  briefcase: '<rect width="20" height="14" x="2" y="7" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
+  globe: '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
+  pin: '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  trash: '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/>',
+  plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  'arrow-up': '<path d="M12 19V5"/><path d="m5 12 7-7 7 7"/>',
+  'arrow-up-right': '<path d="M7 7h10v10"/><path d="M7 17 17 7"/>',
+  'arrow-down-right': '<path d="m7 7 10 10"/><path d="M17 7v10H7"/>',
+  square: '<rect width="14" height="14" x="5" y="5" rx="2" fill="currentColor"/>',
+  refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/>',
+  'chevron-left': '<path d="m15 18-6-6 6-6"/>',
+  'chevron-right': '<path d="m9 18 6-6-6-6"/>',
+  alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  database: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/>',
+  activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+  dollar: '<line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+};
+
+function ic(name, size = 14) {
+  return `<svg class="ic" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ''}</svg>`;
+}
+
+function hydrateIcons(root = document) {
+  root.querySelectorAll('[data-ic]').forEach(el => {
+    el.innerHTML = ic(el.dataset.ic, parseInt(el.dataset.size || '15', 10));
+  });
+}
+
+// ── Security helpers ───────────────────────────────────────
+// Escape HTML — entity data comes from LLM extraction of chat messages and
+// documents, so it must NEVER be injected into innerHTML unescaped.
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+// ── API auth — attach Bearer token to all /api requests ────
+const _fetch = window.fetch.bind(window);
+let apiToken = localStorage.getItem('nexmind_token') || '';
+window.fetch = async (url, opts = {}) => {
+  if (typeof url !== 'string' || !url.startsWith('/api')) return _fetch(url, opts);
+  const withAuth = (o) => ({ ...o, headers: { ...(o.headers || {}), ...(apiToken ? { Authorization: `Bearer ${apiToken}` } : {}) } });
+  let res = await _fetch(url, withAuth(opts));
+  if (res.status === 401) {
+    const tok = prompt(lang === 'es' ? 'Token de acceso (API_TOKEN del servidor):' : 'Access token (server API_TOKEN):');
+    if (tok) {
+      apiToken = tok.trim();
+      localStorage.setItem('nexmind_token', apiToken);
+      res = await _fetch(url, withAuth(opts));
+    }
+  }
+  return res;
+};
+
 // ── State ──────────────────────────────────────────────────
 let lang = 'es';
 let currentConvId = generateId();
@@ -1228,7 +1633,9 @@ const i18n = {
     projects: 'Proyectos', graph: 'Grafo', records: 'registros',
     new_conv: 'Nueva conversación', add: 'Agregar', add_tx: 'Agregar transacción',
     upcoming: 'Próximos eventos', recent_tx: 'Transacciones recientes',
-    graph_hint: 'Cada nodo es una entidad. Las líneas representan relaciones.',
+    graph_hint: 'Cada nodo es una entidad. Las líneas representan relaciones. Haz clic en un nodo para ver detalles.',
+    graph_hint_3d: 'Arrastra para rotar el universo · Rueda del mouse para zoom · Clic en un nodo para ver detalles.',
+    graph_loading_3d: 'Cargando universo 3D…', graph_3d_unavailable: 'No se pudo cargar la vista 3D (sin conexión a internet).',
     refresh: 'Actualizar', cancel: 'Cancelar', save: 'Guardar',
     empty_sub: 'Tu cerebro personal con memoria. Habla naturalmente y el sistema aprende, conecta y recuerda.',
     input_hint: 'Enter para enviar · Shift+Enter nueva línea · La memoria se actualiza automáticamente',
@@ -1244,6 +1651,13 @@ const i18n = {
     income: 'Ingreso', expense: 'Gasto', balance: 'Balance',
     total_income: 'Ingresos totales', total_expense: 'Gastos totales',
     no_items: 'Sin registros aún. Usa el chat para agregar automáticamente.',
+    home: 'Inicio', see_all: 'Ver todo',
+    home_today: 'Agenda de hoy', home_tasks: 'Tareas pendientes',
+    home_finance: 'Movimientos recientes', home_projects: 'Proyectos activos',
+    stat_events: 'Eventos hoy', stat_tasks: 'Tareas abiertas', stat_records: 'Registros',
+    greet_morning: 'Buenos días', greet_afternoon: 'Buenas tardes', greet_evening: 'Buenas noches',
+    home_ask_ph: 'Pregúntale algo a NexMind…',
+    overdue: 'vencida', no_events_today: 'Sin eventos para hoy', all_clear: 'Todo al día',
     days: ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'],
     months: ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
   },
@@ -1253,7 +1667,9 @@ const i18n = {
     projects: 'Projects', graph: 'Graph', records: 'records',
     new_conv: 'New conversation', add: 'Add', add_tx: 'Add transaction',
     upcoming: 'Upcoming events', recent_tx: 'Recent transactions',
-    graph_hint: 'Each node is an entity. Lines represent relationships.',
+    graph_hint: 'Each node is an entity. Lines represent relationships. Click a node for details.',
+    graph_hint_3d: 'Drag to rotate the universe · Scroll to zoom · Click a node for details.',
+    graph_loading_3d: 'Loading 3D universe…', graph_3d_unavailable: 'Could not load the 3D view (no internet connection).',
     refresh: 'Refresh', cancel: 'Cancel', save: 'Save',
     empty_sub: 'Your personal brain with memory. Talk naturally and the system learns, connects and remembers.',
     input_hint: 'Enter to send · Shift+Enter new line · Memory updates automatically',
@@ -1269,6 +1685,13 @@ const i18n = {
     income: 'Income', expense: 'Expense', balance: 'Balance',
     total_income: 'Total Income', total_expense: 'Total Expenses',
     no_items: 'No records yet. Use chat to add automatically.',
+    home: 'Home', see_all: 'See all',
+    home_today: "Today's agenda", home_tasks: 'Open tasks',
+    home_finance: 'Recent activity', home_projects: 'Active projects',
+    stat_events: 'Events today', stat_tasks: 'Open tasks', stat_records: 'Records',
+    greet_morning: 'Good morning', greet_afternoon: 'Good afternoon', greet_evening: 'Good evening',
+    home_ask_ph: 'Ask NexMind anything…',
+    overdue: 'overdue', no_events_today: 'No events today', all_clear: 'All caught up',
     days: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
     months: ['January','February','March','April','May','June','July','August','September','October','November','December']
   }
@@ -1290,18 +1713,25 @@ function setLang(l) {
 function generateId() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
 
 // ── Navigation ─────────────────────────────────────────────
-let currentView = 'chat';
+let currentView = 'home';
 
 function switchView(view) {
+  const prevView = currentView;
   currentView = view;
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view));
   document.getElementById(`view-${view}`).classList.add('active');
+  // Pause the 3D universe's render loop when it's not visible (saves CPU/battery)
+  if (typeof graph3dInstance !== 'undefined' && graph3dInstance) {
+    if (prevView === 'graph' && view !== 'graph') graph3dInstance.pauseAnimation?.();
+    else if (view === 'graph' && graphMode === '3d') graph3dInstance.resumeAnimation?.();
+  }
   refreshCurrentView();
 }
 
 function refreshCurrentView() {
   switch(currentView) {
+    case 'home': loadHome(); break;
     case 'contacts': loadGrid('contact'); break;
     case 'companies': loadGrid('company'); break;
     case 'calendar': renderCalendar(); break;
@@ -1386,14 +1816,17 @@ async function sendMessage() {
         try {
           const p = JSON.parse(data);
           if (p.text) { full += p.text; bodyEl.textContent = full; scrollBottom(); }
-          if (p.memory_updated) {
-            const badge = document.createElement('div');
-            badge.className = 'memory-badge';
-            badge.innerHTML = `✓ ${p.count} ${lang === 'es' ? 'elemento(s) guardado(s) en memoria' : 'item(s) saved to memory'}`;
-            msgEl.appendChild(badge);
-            updateMemCount();
-            refreshCurrentView();
-            toast(lang === 'es' ? `✓ Memoria actualizada (${p.count} elementos)` : `✓ Memory updated (${p.count} items)`, 'success');
+          if (p.error) {
+            full += (full ? '\n\n' : '') + '⚠ ' + p.error;
+            bodyEl.textContent = full;
+            bodyEl.style.color = 'var(--red)';
+            scrollBottom();
+          }
+          if (p.memory_pending) {
+            const wrap = document.createElement('div');
+            wrap.innerHTML = renderReviewCard(p.reviewId, p.entities);
+            msgEl.appendChild(wrap.firstElementChild);
+            scrollBottom();
           }
         } catch {}
       }
@@ -1415,11 +1848,11 @@ function appendMsg(role, text) {
   const time = new Date().toLocaleTimeString(lang === 'es' ? 'es' : 'en', { hour:'2-digit', minute:'2-digit' });
   el.innerHTML = `
     <div class="msg-header">
-      <div class="msg-avatar ${role}">${role === 'user' ? 'U' : '⬡'}</div>
+      <div class="msg-avatar ${role}">${role === 'user' ? 'U' : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linejoin="round"><path d="M12 2l8.66 5v10L12 22l-8.66-5V7z"/></svg>'}</div>
       <span class="msg-role ${role}">${role === 'user' ? (lang === 'es' ? 'Tú' : 'You') : 'NexMind'}</span>
       <span class="msg-time">${time}</span>
     </div>
-    <div class="msg-body ${role === 'user' ? 'user-body' : ''}">${text}</div>
+    <div class="msg-body ${role === 'user' ? 'user-body' : ''}">${esc(text)}</div>
   `;
   document.getElementById('messages').appendChild(el);
   scrollBottom();
@@ -1431,7 +1864,7 @@ function addThinking() {
   el.className = 'message';
   el.innerHTML = `
     <div class="msg-header">
-      <div class="msg-avatar assistant">⬡</div>
+      <div class="msg-avatar assistant"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linejoin="round"><path d="M12 2l8.66 5v10L12 22l-8.66-5V7z"/></svg></div>
       <span class="msg-role assistant">NexMind</span>
     </div>
     <div class="thinking"><div class="dots"><span></span><span></span><span></span></div><span>${lang === 'es' ? 'Procesando...' : 'Processing...'}</span></div>
@@ -1446,15 +1879,87 @@ function scrollBottom() {
   m.scrollTop = m.scrollHeight;
 }
 
+// ── Memory review (confirm/discard before saving) ──────────
+function formatEntityPreview(e) {
+  const d = e.data || {};
+  const name = d.name || d.title || (lang === 'es' ? '(sin nombre)' : '(no name)');
+  let sub = '';
+  if (e.type === 'contact') sub = [d.email, d.phone].filter(Boolean).join(' · ');
+  else if (e.type === 'company') sub = d.industry || '';
+  else if (e.type === 'event') sub = [d.date, d.time].filter(Boolean).join(' ');
+  else if (e.type === 'task') sub = [d.priority, d.due].filter(Boolean).join(' · ');
+  else if (e.type === 'transaction') sub = `${d.type === 'income' ? '+' : '-'}$${Number(d.amount || 0).toLocaleString()}${d.description ? ' · ' + d.description : ''}`;
+  else if (e.type === 'project') sub = [d.client, d.status].filter(Boolean).join(' · ');
+  else if (e.type === 'document') sub = d.type || '';
+  return { name, sub };
+}
+
+function renderReviewCard(reviewId, entities) {
+  const rows = entities.map((e, i) => {
+    const { name, sub } = formatEntityPreview(e);
+    const actionLabel = e.action === 'update' ? (lang === 'es' ? 'Actualizar' : 'Update') : (lang === 'es' ? 'Nuevo' : 'New');
+    return `
+      <label class="review-row">
+        <input type="checkbox" checked data-idx="${i}">
+        <span class="review-row-icon">${ic(typeIcon[e.type] || 'file', 13)}</span>
+        <span class="review-row-main">
+          <span class="review-row-title">${esc(name)}</span>
+          <span class="review-row-sub">${esc(t('types')[e.type] || e.type)}${sub ? ' · ' + esc(sub) : ''} · <em>${actionLabel}</em></span>
+        </span>
+      </label>`;
+  }).join('');
+
+  return `
+    <div class="memory-review" data-review-id="${esc(reviewId)}">
+      <div class="memory-review-header">
+        ${ic('database', 13)} <span>${entities.length} ${lang === 'es' ? 'elemento(s) detectado(s)' : 'item(s) detected'}</span>
+      </div>
+      <div class="memory-review-list">${rows}</div>
+      <div class="memory-review-actions">
+        <button class="btn btn-ghost" onclick="discardReview('${esc(reviewId)}')">${lang === 'es' ? 'Descartar' : 'Discard'}</button>
+        <button class="btn btn-primary" onclick="confirmReview('${esc(reviewId)}')">${ic('checkmark', 12)} ${lang === 'es' ? 'Guardar en memoria' : 'Save to memory'}</button>
+      </div>
+    </div>`;
+}
+
+async function confirmReview(reviewId) {
+  const card = document.querySelector(`.memory-review[data-review-id="${reviewId}"]`);
+  if (!card) return;
+  const indexes = [...card.querySelectorAll('input[type=checkbox]:checked')].map(cb => parseInt(cb.dataset.idx, 10));
+  if (!indexes.length) { toast(lang === 'es' ? 'Selecciona al menos un elemento' : 'Select at least one item'); return; }
+
+  const res = await fetch(`/api/memory/review/${encodeURIComponent(reviewId)}/confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ indexes }),
+  });
+  const data = await res.json();
+  if (!res.ok) { toast(data.error || (lang === 'es' ? 'Error' : 'Error'), 'error'); return; }
+
+  card.outerHTML = `<div class="memory-badge">${ic('checkmark', 10)} ${data.count} ${lang === 'es' ? 'elemento(s) guardado(s) en memoria' : 'item(s) saved to memory'}</div>`;
+  updateMemCount();
+  refreshCurrentView();
+  toast(lang === 'es' ? `✓ Memoria actualizada (${data.count})` : `✓ Memory updated (${data.count})`, 'success');
+}
+
+async function discardReview(reviewId) {
+  const card = document.querySelector(`.memory-review[data-review-id="${reviewId}"]`);
+  try {
+    await fetch(`/api/memory/review/${encodeURIComponent(reviewId)}/discard`, { method: 'POST' });
+  } catch {}
+  if (card) card.remove();
+  toast(lang === 'es' ? 'Descartado' : 'Discarded');
+}
+
 // ── Conversations ──────────────────────────────────────────
 async function loadConversations() {
   const res = await fetch('/api/conversations');
   const convs = await res.json();
   const list = document.getElementById('convList');
   list.innerHTML = convs.map(c => `
-    <div class="conv-item ${c.id === currentConvId ? 'active' : ''}" onclick="loadConv('${c.id}')">
-      <span class="conv-item-title">${c.title || 'Conversación'}</span>
-      <button class="conv-del" onclick="delConv(event,'${c.id}')">✕</button>
+    <div class="conv-item ${c.id === currentConvId ? 'active' : ''}" onclick="loadConv('${esc(c.id)}')">
+      <span class="conv-item-title">${esc(c.title || 'Conversación')}</span>
+      <button class="conv-del" onclick="delConv(event,'${esc(c.id)}')">✕</button>
     </div>
   `).join('') || `<div style="padding:12px;font-size:12px;color:var(--text-muted)">${lang === 'es' ? 'Sin conversaciones' : 'No conversations'}</div>`;
 }
@@ -1485,13 +1990,15 @@ function newConversation() {
 }
 
 // ── Entities / Grids ───────────────────────────────────────
-const typeEmoji = { contact:'👤', company:'🏢', event:'📅', task:'✅', transaction:'💰', project:'📁', document:'📄' };
+const typeIcon = { contact:'user', company:'building', event:'calendar', task:'check', transaction:'wallet', project:'folder', document:'file' };
+
+const GRID_IDS = { contact: 'contacts-grid', company: 'companies-grid', project: 'projects-grid' };
 
 async function loadGrid(type) {
   const res = await fetch(`/api/entities?type=${type}`);
   const items = await res.json();
   allEntities[type] = items;
-  const grid = document.getElementById(`${type}s-grid`);
+  const grid = document.getElementById(GRID_IDS[type] || `${type}s-grid`);
   if (!grid) return;
   if (!items.length) {
     grid.innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:20px;grid-column:1/-1">${t('no_items')}</div>`;
@@ -1507,49 +2014,49 @@ function renderCard(e) {
   let tags = '';
 
   if (type === 'contact') {
-    if (d.email) fields += `<div class="card-field"><span>✉</span>${d.email}</div>`;
-    if (d.phone) fields += `<div class="card-field"><span>📞</span>${d.phone}</div>`;
-    if (d.company) fields += `<div class="card-field"><span>🏢</span>${d.company}</div>`;
-    if (d.role) fields += `<div class="card-field"><span>💼</span>${d.role}</div>`;
+    if (d.email) fields += `<div class="card-field"><span>${ic('mail', 12)}</span>${esc(d.email)}</div>`;
+    if (d.phone) fields += `<div class="card-field"><span>${ic('phone', 12)}</span>${esc(d.phone)}</div>`;
+    if (d.company) fields += `<div class="card-field"><span>${ic('building', 12)}</span>${esc(d.company)}</div>`;
+    if (d.role) fields += `<div class="card-field"><span>${ic('briefcase', 12)}</span>${esc(d.role)}</div>`;
   } else if (type === 'company') {
-    if (d.industry) fields += `<div class="card-field"><span>🏭</span>${d.industry}</div>`;
-    if (d.website) fields += `<div class="card-field"><span>🌐</span>${d.website}</div>`;
-    if (d.address) fields += `<div class="card-field"><span>📍</span>${d.address}</div>`;
+    if (d.industry) fields += `<div class="card-field"><span>${ic('briefcase', 12)}</span>${esc(d.industry)}</div>`;
+    if (d.website) fields += `<div class="card-field"><span>${ic('globe', 12)}</span>${esc(d.website)}</div>`;
+    if (d.address) fields += `<div class="card-field"><span>${ic('pin', 12)}</span>${esc(d.address)}</div>`;
   } else if (type === 'event') {
-    if (d.date) fields += `<div class="card-field"><span>📅</span>${d.date}${d.time ? ' ' + d.time : ''}</div>`;
-    if (d.contact) fields += `<div class="card-field"><span>👤</span>${d.contact}</div>`;
-    if (d.location) fields += `<div class="card-field"><span>📍</span>${d.location}</div>`;
-    tags += `<span class="tag ${d.status === 'done' ? 'green' : 'blue'}">${t('status')[d.status] || d.status || 'pending'}</span>`;
+    if (d.date) fields += `<div class="card-field"><span>${ic('calendar', 12)}</span>${esc(d.date)}${d.time ? ' ' + esc(d.time) : ''}</div>`;
+    if (d.contact) fields += `<div class="card-field"><span>${ic('user', 12)}</span>${esc(d.contact)}</div>`;
+    if (d.location) fields += `<div class="card-field"><span>${ic('pin', 12)}</span>${esc(d.location)}</div>`;
+    tags += `<span class="tag ${d.status === 'done' ? 'green' : 'blue'}">${esc(t('status')[d.status] || d.status || 'pending')}</span>`;
   } else if (type === 'project') {
-    if (d.client) fields += `<div class="card-field"><span>👤</span>${d.client}</div>`;
-    if (d.value) fields += `<div class="card-field"><span>💵</span>$${Number(d.value).toLocaleString()}</div>`;
-    if (d.start_date) fields += `<div class="card-field"><span>📅</span>${d.start_date}</div>`;
-    tags += `<span class="tag ${d.status === 'active' ? 'green' : d.status === 'done' ? 'blue' : 'orange'}">${t('status')[d.status] || d.status || 'active'}</span>`;
+    if (d.client) fields += `<div class="card-field"><span>${ic('user', 12)}</span>${esc(d.client)}</div>`;
+    if (d.value) fields += `<div class="card-field"><span>${ic('dollar', 12)}</span>$${Number(d.value).toLocaleString()}</div>`;
+    if (d.start_date) fields += `<div class="card-field"><span>${ic('calendar', 12)}</span>${esc(d.start_date)}</div>`;
+    tags += `<span class="tag ${d.status === 'active' ? 'green' : d.status === 'done' ? 'blue' : 'orange'}">${esc(t('status')[d.status] || d.status || 'active')}</span>`;
   }
 
   const name = d.name || d.title || 'Sin nombre';
 
   return `
-    <div class="card" onclick="openEditModal('${e.id}','${type}')">
+    <div class="card" onclick="openEditModal('${esc(e.id)}','${type}')">
       <div class="card-header">
         <div>
-          <div class="card-type">${typeEmoji[type]} ${t('types')[type]}</div>
-          <div class="card-title">${name}</div>
+          <div class="card-type">${t('types')[type]}</div>
+          <div class="card-title">${esc(name)}</div>
         </div>
-        <div class="card-avatar">${(name[0] || '?').toUpperCase()}</div>
+        <div class="card-avatar">${esc((String(name)[0] || '?').toUpperCase())}</div>
       </div>
       ${fields}
       ${tags ? `<div class="card-tags">${tags}</div>` : ''}
       <div class="card-actions">
-        <button class="card-btn" onclick="event.stopPropagation();chatAbout('${name}')">💬 ${lang === 'es' ? 'Chatear' : 'Chat'}</button>
-        <button class="card-btn danger" onclick="event.stopPropagation();deleteEntity('${e.id}','${type}')">🗑</button>
+        <button class="card-btn" onclick="event.stopPropagation();chatAbout(this.dataset.name)" data-name="${esc(name)}">${ic('chat', 11)} ${lang === 'es' ? 'Chatear' : 'Chat'}</button>
+        <button class="card-btn danger" onclick="event.stopPropagation();deleteEntity('${esc(e.id)}','${type}')">${ic('trash', 11)}</button>
       </div>
     </div>
   `;
 }
 
 function filterEntities(type, q) {
-  const grid = document.getElementById(`${type}s-grid`);
+  const grid = document.getElementById(GRID_IDS[type] || `${type}s-grid`);
   if (!grid || !allEntities[type]) return;
   const filtered = allEntities[type].filter(e => JSON.stringify(e.data).toLowerCase().includes(q.toLowerCase()));
   if (!filtered.length) { grid.innerHTML = `<div style="color:var(--text-muted);padding:20px;font-size:13px">${lang === 'es' ? 'Sin resultados' : 'No results'}</div>`; return; }
@@ -1603,11 +2110,11 @@ async function loadFinance() {
       <div class="tx-item">
         <div class="tx-dot ${d.type}"></div>
         <div>
-          <div class="tx-desc">${d.description || (d.type === 'income' ? lang === 'es' ? 'Ingreso' : 'Income' : lang === 'es' ? 'Gasto' : 'Expense')}</div>
-          <div class="tx-meta">${d.contact || ''}${d.contact && d.date ? ' · ' : ''}${d.date || ''}${d.category ? ' · ' + d.category : ''}</div>
+          <div class="tx-desc">${esc(d.description || (d.type === 'income' ? lang === 'es' ? 'Ingreso' : 'Income' : lang === 'es' ? 'Gasto' : 'Expense'))}</div>
+          <div class="tx-meta">${esc(d.contact || '')}${d.contact && d.date ? ' · ' : ''}${esc(d.date || '')}${d.category ? ' · ' + esc(d.category) : ''}</div>
         </div>
         <div class="tx-amount ${d.type}">${d.type === 'income' ? '+' : '-'}$${Number(d.amount || 0).toLocaleString()}</div>
-        <button class="card-btn danger" style="width:28px;flex:none" onclick="deleteEntity('${t.id}','transaction')">🗑</button>
+        <button class="card-btn danger" style="width:28px;flex:none" onclick="deleteEntity('${esc(t.id)}','transaction')">${ic('trash', 11)}</button>
       </div>
     `;
   }).join('');
@@ -1633,20 +2140,89 @@ async function loadTasks() {
         <span style="color:${col.color}">${col.label}</span>
         <span style="background:${col.color};color:#000;font-size:10px;padding:1px 7px;border-radius:10px;font-weight:700">${cols[col.key].length}</span>
       </div>
-      <div class="task-col-body">
+      <div class="task-col-body" ondragover="taskDragOver(event)" ondragenter="taskDragEnter(event)" ondragleave="taskDragLeave(event)" ondrop="taskDrop(event,'${col.key}')">
         ${cols[col.key].map(t => `
-          <div class="task-card" onclick="openEditModal('${t.id}','task')">
-            <div class="task-name">${t.data.title || 'Sin título'}</div>
+          <div class="task-card" draggable="true"
+               data-id="${esc(t.id)}"
+               ondragstart="taskDragStart(event,'${esc(t.id)}','${col.key}')"
+               ondragend="taskDragEnd(event)"
+               onclick="if(!taskJustDragged) openEditModal('${esc(t.id)}','task')">
+            <div class="task-name">${esc(t.data.title || 'Sin título')}</div>
             <div class="task-meta">
-              ${t.data.priority ? `<span class="tag ${t.data.priority === 'urgent' ? 'red' : t.data.priority === 'high' ? 'orange' : 'blue'}">${t.data.priority}</span>` : ''}
-              ${t.data.due ? `<span class="tag">📅 ${t.data.due}</span>` : ''}
-              ${t.data.assignee ? `<span class="tag">👤 ${t.data.assignee}</span>` : ''}
+              ${t.data.priority ? `<span class="tag ${t.data.priority === 'urgent' ? 'red' : t.data.priority === 'high' ? 'orange' : 'blue'}">${esc(t.data.priority)}</span>` : ''}
+              ${t.data.due ? `<span class="tag">${ic('calendar', 10)} ${esc(t.data.due)}</span>` : ''}
+              ${t.data.assignee ? `<span class="tag">${ic('user', 10)} ${esc(t.data.assignee)}</span>` : ''}
             </div>
           </div>
-        `).join('') || `<div style="color:var(--text-muted);font-size:12px;padding:10px;text-align:center">—</div>`}
+        `).join('') || `<div class="task-col-empty">—</div>`}
       </div>
     </div>
   `).join('');
+}
+
+// ── Task drag & drop (change status by dropping into a column) ─────
+let draggedTaskId = null;
+let draggedTaskStatus = null;
+let taskJustDragged = false;
+
+function taskDragStart(evt, id, status) {
+  draggedTaskId = id;
+  draggedTaskStatus = status;
+  evt.currentTarget.classList.add('dragging');
+  evt.dataTransfer.effectAllowed = 'move';
+  try { evt.dataTransfer.setData('text/plain', id); } catch {}
+}
+
+function taskDragEnd(evt) {
+  evt.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('.task-col-body.drag-over').forEach(el => el.classList.remove('drag-over'));
+  draggedTaskId = null;
+  draggedTaskStatus = null;
+  // Swallow the click that some browsers fire right after a drag release,
+  // so dropping a card doesn't also pop open the edit modal.
+  taskJustDragged = true;
+  setTimeout(() => { taskJustDragged = false; }, 50);
+}
+
+function taskDragOver(evt) {
+  evt.preventDefault(); // required for the element to accept a drop
+  evt.dataTransfer.dropEffect = 'move';
+}
+
+function taskDragEnter(evt) {
+  evt.preventDefault();
+  evt.currentTarget.classList.add('drag-over');
+}
+
+function taskDragLeave(evt) {
+  if (!evt.currentTarget.contains(evt.relatedTarget)) {
+    evt.currentTarget.classList.remove('drag-over');
+  }
+}
+
+async function taskDrop(evt, newStatus) {
+  evt.preventDefault();
+  evt.currentTarget.classList.remove('drag-over');
+  const id = draggedTaskId || evt.dataTransfer.getData('text/plain');
+  const oldStatus = draggedTaskStatus;
+  draggedTaskId = null;
+  draggedTaskStatus = null;
+  if (!id || oldStatus === newStatus) return;
+
+  try {
+    const res = await fetch(`/api/entities/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: { status: newStatus } }),
+    });
+    if (!res.ok) throw new Error('update failed');
+  } catch {
+    toast(lang === 'es' ? 'Error al actualizar la tarea' : 'Failed to update task', 'error');
+  }
+
+  loadTasks();
+  updateMemCount();
+  if (currentView === 'home') loadHome();
 }
 
 // ── Calendar ───────────────────────────────────────────────
@@ -1677,7 +2253,7 @@ async function renderCalendar() {
     html += `
       <div class="cal-day ${isToday ? 'today' : ''}" onclick="openModal('event',{date:'${dateStr}'})">
         <div class="cal-num">${isToday ? `<span class="today-badge">${d}</span>` : d}</div>
-        ${dayEvents.slice(0,2).map(e => `<div class="cal-event">${e.data.title || 'Evento'}</div>`).join('')}
+        ${dayEvents.slice(0,2).map(e => `<div class="cal-event" onclick="event.stopPropagation();openEditModal('${esc(e.id)}','event')">${esc(e.data.title || 'Evento')}</div>`).join('')}
         ${dayEvents.length > 2 ? `<div style="font-size:9px;color:var(--text-muted)">+${dayEvents.length-2}</div>` : ''}
       </div>
     `;
@@ -1692,11 +2268,11 @@ async function renderCalendar() {
     .slice(0, 6);
 
   document.getElementById('upcomingEvents').innerHTML = upcoming.map(e => `
-    <div class="event-card">
-      <div class="event-title">${e.data.title || 'Evento'}</div>
+    <div class="event-card" onclick="openEditModal('${esc(e.id)}','event')" style="cursor:pointer">
+      <div class="event-title">${esc(e.data.title || 'Evento')}</div>
       <div class="event-meta">
-        <span>📅 ${e.data.date}${e.data.time ? ' ' + e.data.time : ''}</span>
-        ${e.data.contact ? `<span>👤 ${e.data.contact}</span>` : ''}
+        <span>${ic('calendar', 10)} ${esc(e.data.date)}${e.data.time ? ' ' + esc(e.data.time) : ''}</span>
+        ${e.data.contact ? `<span>${ic('user', 10)} ${esc(e.data.contact)}</span>` : ''}
       </div>
     </div>
   `).join('') || `<div style="color:var(--text-muted);font-size:12px;padding:10px">${lang === 'es' ? 'Sin eventos próximos' : 'No upcoming events'}</div>`;
@@ -1705,56 +2281,291 @@ async function renderCalendar() {
 function prevMonth() { calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } renderCalendar(); }
 function nextMonth() { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar(); }
 
-// ── Graph ──────────────────────────────────────────────────
+// ── Graph (2D canvas + 3D universe) ─────────────────────────
+let graphNodes = [];
+let graphEdges = [];
+let graphHoverId = null;
+let graphEntities = {};
+let graphMode = '2d';
+let graph3dInstance = null;
+let graph3dLibPromise = null;
+
+const GRAPH_COLORS = { contact:'#3b82f6', company:'#8b5cf6', event:'#06b6d4', task:'#10b981', transaction:'#f59e0b', project:'#ef4444', document:'#6b7280' };
+const GRAPH_3D_LIB_URL = 'https://unpkg.com/3d-force-graph@1.80.0/dist/3d-force-graph.min.js';
+
+function loadForceGraph3DLib() {
+  if (window.ForceGraph3D) return Promise.resolve();
+  if (graph3dLibPromise) return graph3dLibPromise;
+  graph3dLibPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = GRAPH_3D_LIB_URL;
+    s.onload = () => resolve();
+    s.onerror = () => { graph3dLibPromise = null; reject(new Error('load failed')); };
+    document.head.appendChild(s);
+  });
+  return graph3dLibPromise;
+}
+
+function setGraphMode(mode) {
+  document.querySelectorAll('#graphModeToggle .lang-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  document.getElementById('graphHint2d').style.display = mode === '2d' ? 'block' : 'none';
+  document.getElementById('graphHint3d').style.display = mode === '3d' ? 'block' : 'none';
+  document.getElementById('graphCanvas').style.display = mode === '2d' ? 'block' : 'none';
+  document.getElementById('graph3d').style.display = mode === '3d' ? 'block' : 'none';
+  document.getElementById('graphPanel').style.display = 'none';
+  if (mode === graphMode) return;
+  graphMode = mode;
+  if (graph3dInstance) {
+    if (mode === '3d') graph3dInstance.resumeAnimation?.();
+    else graph3dInstance.pauseAnimation?.();
+  }
+  renderGraph();
+}
+
 async function renderGraph() {
-  const res = await fetch('/api/entities');
-  const entities = await res.json();
+  const [entRes, relRes] = await Promise.all([fetch('/api/entities'), fetch('/api/relations')]);
+  const entities = await entRes.json();
+  const relations = await relRes.json();
+
+  graphEntities = {};
+  entities.forEach(e => { graphEntities[e.id] = e; });
+  graphHoverId = null;
+  document.getElementById('graphPanel').style.display = 'none';
+
+  if (graphMode === '2d') renderGraph2D(entities, relations);
+  else await renderGraph3D(entities, relations);
+}
+
+// ── 2D canvas view — best for a quick, readable overview ──
+function renderGraph2D(entities, relations) {
   const canvas = document.getElementById('graphCanvas');
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
 
-  ctx.clearRect(0, 0, W, H);
-
   if (!entities.length) {
+    ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = '#3d5070';
-    ctx.font = '14px Outfit';
+    ctx.font = '14px Inter';
     ctx.textAlign = 'center';
     ctx.fillText(lang === 'es' ? 'Sin datos aún. Agrega entidades usando el chat.' : 'No data yet. Add entities using chat.', W/2, H/2);
+    graphNodes = [];
+    graphEdges = [];
     return;
   }
 
-  // Simple force-directed layout
-  const nodes = entities.slice(0, 30).map((e, i) => {
-    const angle = (i / Math.min(entities.length, 30)) * Math.PI * 2;
+  const shown = entities.slice(0, 40);
+  const shownIds = new Set(shown.map(e => e.id));
+
+  graphNodes = shown.map((e, i) => {
+    const angle = (i / shown.length) * Math.PI * 2 - Math.PI / 2;
     const r = Math.min(W, H) * 0.35;
     return {
       id: e.id, type: e.type,
-      label: (e.data.name || e.data.title || 'Entity').slice(0, 12),
-      x: W/2 + r * Math.cos(angle),
-      y: H/2 + r * Math.sin(angle)
+      label: (e.data.name || e.data.title || 'Entity').slice(0, 14),
+      x: W / 2 + r * Math.cos(angle),
+      y: H / 2 + r * Math.sin(angle),
     };
   });
 
-  const colors = { contact:'#3b82f6', company:'#8b5cf6', event:'#06b6d4', task:'#10b981', transaction:'#f59e0b', project:'#ef4444', document:'#6b7280' };
+  graphEdges = relations
+    .filter(r => shownIds.has(r.from_id) && shownIds.has(r.to_id))
+    .map(r => ({ from: r.from_id, to: r.to_id, type: r.relation_type }));
 
-  // Draw nodes
-  nodes.forEach(n => {
+  drawGraph();
+  initGraphInteraction();
+}
+
+// ── 3D universe view — force-directed layout, scales to hundreds of nodes ──
+async function renderGraph3D(entities, relations) {
+  const el3d = document.getElementById('graph3d');
+
+  if (!entities.length) {
+    if (!graph3dInstance) {
+      el3d.innerHTML = `<div class="graph-empty-3d">${lang === 'es' ? 'Sin datos aún. Agrega entidades usando el chat.' : 'No data yet. Add entities using chat.'}</div>`;
+    } else {
+      graph3dInstance.graphData({ nodes: [], links: [] });
+    }
+    graphEdges = [];
+    return;
+  }
+
+  if (!graph3dInstance) {
+    el3d.innerHTML = `<div class="graph-loading-3d">${ic('graph', 22)}<span>${t('graph_loading_3d')}</span></div>`;
+    try {
+      await loadForceGraph3DLib();
+    } catch {
+      el3d.innerHTML = `<div class="graph-empty-3d">${t('graph_3d_unavailable')}</div>`;
+      return;
+    }
+    // Bail if the user navigated away while the library was loading over the network
+    if (graphMode !== '3d' || currentView !== 'graph') return;
+
+    el3d.innerHTML = '';
+    graph3dInstance = ForceGraph3D()(el3d)
+      .width(800).height(500)
+      .backgroundColor('#04060c')
+      .showNavInfo(false)
+      .nodeRelSize(4)
+      .nodeColor(n => GRAPH_COLORS[n.type] || '#3b82f6')
+      .nodeVal(n => n.val)
+      .nodeLabel(n => `<div style="font:12px Inter,sans-serif;padding:4px 8px;background:#111a2e;border:1px solid #243350;border-radius:6px;color:#e2e8f0">${esc(n.label)}<br><span style="color:#7d92b0;font-size:10px">${esc(t('types')[n.type] || n.type)}</span></div>`)
+      .linkColor(() => 'rgba(96,165,250,0.35)')
+      .linkOpacity(0.4)
+      .linkDirectionalParticles(1)
+      .linkDirectionalParticleWidth(1.4)
+      .linkDirectionalParticleSpeed(0.006)
+      .onNodeClick(node => showGraphPanel(node))
+      .onBackgroundClick(() => { document.getElementById('graphPanel').style.display = 'none'; });
+
+    const controls = graph3dInstance.controls?.();
+    if (controls) { controls.autoRotate = true; controls.autoRotateSpeed = 0.4; }
+  }
+
+  const shown = entities.slice(0, 300); // WebGL + force layout handles far more nodes than the 2D canvas
+  const shownIds = new Set(shown.map(e => e.id));
+  const links = relations
+    .filter(r => shownIds.has(r.from_id) && shownIds.has(r.to_id))
+    .map(r => ({ source: r.from_id, target: r.to_id, type: r.relation_type }));
+
+  const degree = {};
+  links.forEach(l => { degree[l.source] = (degree[l.source] || 0) + 1; degree[l.target] = (degree[l.target] || 0) + 1; });
+
+  const nodes = shown.map(e => ({
+    id: e.id,
+    type: e.type,
+    label: e.data.name || e.data.title || 'Entity',
+    val: 1 + (degree[e.id] || 0) * 0.6,
+  }));
+
+  graph3dInstance.graphData({ nodes, links });
+  graphEdges = links.map(l => ({ from: l.source, to: l.target, type: l.type }));
+}
+
+function drawGraph() {
+  const canvas = document.getElementById('graphCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const nodeById = Object.fromEntries(graphNodes.map(n => [n.id, n]));
+
+  const connected = new Set();
+  if (graphHoverId) {
+    connected.add(graphHoverId);
+    graphEdges.forEach(e => {
+      if (e.from === graphHoverId) connected.add(e.to);
+      if (e.to === graphHoverId) connected.add(e.from);
+    });
+  }
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Edges
+  graphEdges.forEach(e => {
+    const a = nodeById[e.from], b = nodeById[e.to];
+    if (!a || !b) return;
+    const dim = graphHoverId && !(connected.has(e.from) && connected.has(e.to));
     ctx.beginPath();
-    ctx.arc(n.x, n.y, 20, 0, Math.PI * 2);
-    ctx.fillStyle = colors[n.type] || '#3b82f6';
-    ctx.globalAlpha = 0.8;
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.strokeStyle = dim ? 'rgba(36,51,80,0.4)' : 'rgba(96,165,250,0.6)';
+    ctx.lineWidth = dim ? 1 : 1.5;
+    ctx.stroke();
+  });
+
+  // Nodes
+  graphNodes.forEach(n => {
+    const dim = graphHoverId && !connected.has(n.id);
+    ctx.globalAlpha = dim ? 0.35 : 0.9;
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, n.id === graphHoverId ? 22 : 18, 0, Math.PI * 2);
+    ctx.fillStyle = GRAPH_COLORS[n.type] || '#3b82f6';
     ctx.fill();
+    if (n.id === graphHoverId) {
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.stroke();
+    }
     ctx.globalAlpha = 1;
 
-    ctx.fillStyle = '#e2e8f0';
-    ctx.font = 'bold 11px Outfit';
+    ctx.fillStyle = dim ? 'rgba(226,232,240,0.35)' : '#7d92b0';
+    ctx.font = '10px Inter';
     ctx.textAlign = 'center';
-    ctx.fillText(typeEmoji[n.type], n.x, n.y + 4);
-
-    ctx.fillStyle = '#7d92b0';
-    ctx.font = '10px Outfit';
-    ctx.fillText(n.label, n.x, n.y + 34);
+    ctx.fillText(n.label, n.x, n.y + 32);
   });
+}
+
+function graphNodeAt(x, y) {
+  for (let i = graphNodes.length - 1; i >= 0; i--) {
+    const n = graphNodes[i];
+    if (Math.hypot(n.x - x, n.y - y) <= 20) return n;
+  }
+  return null;
+}
+
+function graphCanvasCoords(evt) {
+  const canvas = document.getElementById('graphCanvas');
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  return { x: (evt.clientX - rect.left) * scaleX, y: (evt.clientY - rect.top) * scaleY };
+}
+
+function initGraphInteraction() {
+  const canvas = document.getElementById('graphCanvas');
+  if (!canvas || canvas.dataset.bound) return;
+  canvas.dataset.bound = '1';
+
+  canvas.addEventListener('mousemove', (evt) => {
+    const { x, y } = graphCanvasCoords(evt);
+    const node = graphNodeAt(x, y);
+    canvas.style.cursor = node ? 'pointer' : 'default';
+    const newHover = node ? node.id : null;
+    if (newHover !== graphHoverId) { graphHoverId = newHover; drawGraph(); }
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    if (graphHoverId) { graphHoverId = null; drawGraph(); }
+  });
+
+  canvas.addEventListener('click', (evt) => {
+    const { x, y } = graphCanvasCoords(evt);
+    const node = graphNodeAt(x, y);
+    if (node) showGraphPanel(node);
+    else document.getElementById('graphPanel').style.display = 'none';
+  });
+}
+
+function showGraphPanel(node) {
+  const entity = graphEntities[node.id];
+  if (!entity) return;
+  const panel = document.getElementById('graphPanel');
+  const { name, sub } = formatEntityPreview(entity);
+  const connections = graphEdges.filter(e => e.from === node.id || e.to === node.id);
+
+  panel.innerHTML = `
+    <div class="graph-panel-header">
+      <span class="home-row-icon accent">${ic(typeIcon[entity.type] || 'file', 14)}</span>
+      <div>
+        <div class="graph-panel-title">${esc(name)}</div>
+        <div class="graph-panel-sub">${esc(t('types')[entity.type] || entity.type)}${sub ? ' · ' + esc(sub) : ''}</div>
+      </div>
+    </div>
+    ${connections.length ? `
+      <div class="graph-panel-rel-label">${lang === 'es' ? 'Conexiones' : 'Connections'} (${connections.length})</div>
+      <div class="graph-panel-rel-list">
+        ${connections.map(c => {
+          const otherId = c.from === node.id ? c.to : c.from;
+          const other = graphEntities[otherId];
+          if (!other) return '';
+          const otherName = other.data.name || other.data.title || '?';
+          return `<div class="graph-panel-rel-item">${ic(typeIcon[other.type] || 'file', 11)} <span>${esc(otherName)}</span><em>${esc(c.type)}</em></div>`;
+        }).join('')}
+      </div>` : `<div class="graph-panel-empty">${lang === 'es' ? 'Sin conexiones' : 'No connections'}</div>`}
+    <div class="graph-panel-actions">
+      <button class="btn btn-ghost" onclick="openEditModal('${esc(node.id)}','${node.type}')">${lang === 'es' ? 'Ver detalles' : 'View details'}</button>
+      <button class="btn btn-primary" data-name="${esc(name)}" onclick="chatAbout(this.dataset.name)">${ic('chat', 12)} ${lang === 'es' ? 'Preguntar' : 'Ask'}</button>
+    </div>
+  `;
+  panel.style.display = 'block';
 }
 
 // ── Modal ──────────────────────────────────────────────────
@@ -1783,7 +2594,7 @@ const modalForms = {
   event: (defaults={}) => `
     <div class="form-group"><label class="form-label">${lang==='es'?'Título':'Title'} *</label><input class="form-input" id="f_title" required></div>
     <div class="form-row">
-      <div class="form-group"><label class="form-label">${lang==='es'?'Fecha':'Date'}</label><input class="form-input" id="f_date" type="date" value="${defaults.date||''}"></div>
+      <div class="form-group"><label class="form-label">${lang==='es'?'Fecha':'Date'}</label><input class="form-input" id="f_date" type="date" value="${esc(defaults.date||'')}"></div>
       <div class="form-group"><label class="form-label">${lang==='es'?'Hora':'Time'}</label><input class="form-input" id="f_time" type="time"></div>
     </div>
     <div class="form-row">
@@ -1860,7 +2671,7 @@ const modalForms = {
 function openModal(type, defaults = {}) {
   modalType = type;
   modalEditId = null;
-  document.getElementById('modalTitle').innerHTML = `${typeEmoji[type]} ${lang==='es'?'Nuevo':'New'} ${t('types')[type]}`;
+  document.getElementById('modalTitle').innerHTML = `${ic(typeIcon[type], 16)} ${lang==='es'?'Nuevo':'New'} ${t('types')[type]}`;
   document.getElementById('modalBody').innerHTML = (modalForms[type] || (() => ''))(defaults);
   document.getElementById('modalOverlay').classList.add('open');
 }
@@ -1873,7 +2684,7 @@ async function openEditModal(id, type) {
 
   modalType = type;
   modalEditId = id;
-  document.getElementById('modalTitle').innerHTML = `${typeEmoji[type]} ${lang==='es'?'Editar':'Edit'} ${t('types')[type]}`;
+  document.getElementById('modalTitle').innerHTML = `${ic(typeIcon[type], 16)} ${lang==='es'?'Editar':'Edit'} ${t('types')[type]}`;
   document.getElementById('modalBody').innerHTML = (modalForms[type] || (() => ''))();
   document.getElementById('modalOverlay').classList.add('open');
 
@@ -1912,6 +2723,124 @@ async function saveModal() {
   refreshCurrentView();
 }
 
+// ── Home dashboard ─────────────────────────────────────────
+async function loadHome() {
+  const [entRes, finRes] = await Promise.all([
+    fetch('/api/entities'),
+    fetch('/api/finance/summary'),
+  ]);
+  const all = await entRes.json();
+  const fin = await finRes.json();
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+
+  // Greeting + date
+  const h = now.getHours();
+  const greet = h < 12 ? t('greet_morning') : h < 19 ? t('greet_afternoon') : t('greet_evening');
+  document.getElementById('homeGreeting').textContent = greet;
+  document.getElementById('homeDate').textContent =
+    now.toLocaleDateString(lang === 'es' ? 'es' : 'en', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  document.getElementById('homeAskInput').placeholder = t('home_ask_ph');
+
+  const events = all.filter(e => e.type === 'event');
+  const tasks = all.filter(e => e.type === 'task' && e.data.status !== 'done');
+  const projects = all.filter(e => e.type === 'project');
+
+  const eventsToday = events.filter(e => e.data.date && e.data.date.startsWith(todayStr));
+  const overdue = tasks.filter(tk => tk.data.due && tk.data.due < todayStr);
+
+  // Stats
+  document.getElementById('homeStats').innerHTML = `
+    <div class="home-stat" onclick="switchView('calendar')">
+      <div class="home-stat-top"><span class="home-stat-label">${t('stat_events')}</span>${ic('calendar', 15)}</div>
+      <div class="home-stat-value">${eventsToday.length}</div>
+    </div>
+    <div class="home-stat" onclick="switchView('tasks')">
+      <div class="home-stat-top"><span class="home-stat-label">${t('stat_tasks')}</span>${ic('check', 15)}</div>
+      <div class="home-stat-value">${tasks.length}</div>
+      ${overdue.length ? `<div class="home-stat-sub" style="color:var(--red)">${overdue.length} ${t('overdue')}${overdue.length > 1 && lang === 'es' ? 's' : ''}</div>` : ''}
+    </div>
+    <div class="home-stat" onclick="switchView('finance')">
+      <div class="home-stat-top"><span class="home-stat-label">${t('balance')}</span>${ic('dollar', 15)}</div>
+      <div class="home-stat-value" style="color:${fin.balance >= 0 ? 'var(--green)' : 'var(--red)'}">${fin.balance >= 0 ? '' : '-'}$${Math.abs(fin.balance).toLocaleString()}</div>
+    </div>
+    <div class="home-stat" onclick="switchView('graph')">
+      <div class="home-stat-top"><span class="home-stat-label">${t('stat_records')}</span>${ic('database', 15)}</div>
+      <div class="home-stat-value">${all.length}</div>
+    </div>
+  `;
+
+  // Today + upcoming events
+  const upcoming = events
+    .filter(e => e.data.date && e.data.date >= todayStr)
+    .sort((a, b) => (a.data.date > b.data.date ? 1 : -1))
+    .slice(0, 6);
+  document.getElementById('homeEvents').innerHTML = upcoming.map(e => {
+    const isToday = e.data.date.startsWith(todayStr);
+    return `
+    <div class="home-row" onclick="switchView('calendar')">
+      <div class="home-row-icon ${isToday ? 'accent' : ''}">${ic('calendar', 13)}</div>
+      <div class="home-row-main">
+        <div class="home-row-title">${esc(e.data.title || 'Evento')}</div>
+        <div class="home-row-meta">${esc(e.data.date)}${e.data.time ? ' · ' + esc(e.data.time) : ''}${e.data.contact ? ' · ' + esc(e.data.contact) : ''}</div>
+      </div>
+    </div>`;
+  }).join('') || `<div class="home-empty">${t('no_events_today')}</div>`;
+
+  // Open tasks — overdue first, then by due date
+  const sortedTasks = [...tasks].sort((a, b) => (a.data.due || '9999') > (b.data.due || '9999') ? 1 : -1).slice(0, 6);
+  document.getElementById('homeTasks').innerHTML = sortedTasks.map(tk => {
+    const isOverdue = tk.data.due && tk.data.due < todayStr;
+    const urgent = tk.data.priority === 'urgent' || tk.data.priority === 'high';
+    return `
+    <div class="home-row" onclick="switchView('tasks')">
+      <div class="home-row-icon ${isOverdue ? 'red' : urgent ? 'orange' : ''}">${ic(isOverdue ? 'alert' : 'check', 13)}</div>
+      <div class="home-row-main">
+        <div class="home-row-title">${esc(tk.data.title || 'Sin título')}</div>
+        <div class="home-row-meta">${tk.data.priority ? esc(t('priority')[tk.data.priority] || tk.data.priority) : ''}${tk.data.assignee ? ' · ' + esc(tk.data.assignee) : ''}</div>
+      </div>
+      ${tk.data.due ? `<div class="home-row-side ${isOverdue ? 'overdue' : ''}">${esc(tk.data.due)}</div>` : ''}
+    </div>`;
+  }).join('') || `<div class="home-empty">${t('all_clear')}</div>`;
+
+  // Recent transactions
+  document.getElementById('homeTx').innerHTML = (fin.transactions || []).slice(0, 6).map(tx => {
+    const d = tx.data;
+    return `
+    <div class="home-row" onclick="switchView('finance')">
+      <div class="home-row-icon ${d.type === 'income' ? 'green' : 'red'}">${ic(d.type === 'income' ? 'arrow-up-right' : 'arrow-down-right', 13)}</div>
+      <div class="home-row-main">
+        <div class="home-row-title">${esc(d.description || t(d.type) || d.type)}</div>
+        <div class="home-row-meta">${esc(d.date || '')}${d.category ? ' · ' + esc(d.category) : ''}</div>
+      </div>
+      <div class="home-row-side ${d.type}">${d.type === 'income' ? '+' : '-'}$${Number(d.amount || 0).toLocaleString()}</div>
+    </div>`;
+  }).join('') || `<div class="home-empty">${t('no_items')}</div>`;
+
+  // Active projects
+  const activeProjects = [...projects].sort((a, b) => (a.data.status === 'active' ? -1 : 1)).slice(0, 6);
+  document.getElementById('homeProjects').innerHTML = activeProjects.map(p => `
+    <div class="home-row" onclick="switchView('projects')">
+      <div class="home-row-icon ${p.data.status === 'active' ? 'accent' : ''}">${ic('folder', 13)}</div>
+      <div class="home-row-main">
+        <div class="home-row-title">${esc(p.data.name || 'Proyecto')}</div>
+        <div class="home-row-meta">${esc(t('status')[p.data.status] || p.data.status || '')}${p.data.client ? ' · ' + esc(p.data.client) : ''}</div>
+      </div>
+      ${p.data.value ? `<div class="home-row-side">$${Number(p.data.value).toLocaleString()}</div>` : ''}
+    </div>`).join('') || `<div class="home-empty">${t('no_items')}</div>`;
+}
+
+function homeAsk() {
+  const input = document.getElementById('homeAskInput');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  switchView('chat');
+  document.getElementById('chatInput').value = text;
+  sendMessage();
+}
+
 // ── Utilities ──────────────────────────────────────────────
 async function updateMemCount() {
   const res = await fetch('/api/entities');
@@ -1928,9 +2857,11 @@ function toast(msg, type = '') {
 }
 
 // ── Init ───────────────────────────────────────────────────
+hydrateIcons();
 renderSuggestions();
 loadConversations();
 updateMemCount();
+loadHome();
 
 // Refresh data every 30s
 setInterval(() => { updateMemCount(); if (currentView !== 'chat') refreshCurrentView(); }, 30000);

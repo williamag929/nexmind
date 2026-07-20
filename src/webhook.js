@@ -23,6 +23,7 @@
  *   { "path": "/Documents/invoice.pdf", "event": "create" }
  */
 
+import crypto from 'crypto';
 import { downloadFile }   from './nextcloud.js';
 import { analyzeDocument, isAnalyzable } from './analyzer.js';
 import {
@@ -35,18 +36,23 @@ import {
 
 /**
  * Verify the webhook request is coming from our Nextcloud instance.
- * Returns true if no secret is configured (open mode) or if secret matches.
+ * The secret is REQUIRED: if WEBHOOK_SECRET is not configured, all webhook
+ * requests are rejected (fail closed). Header-only — query strings leak into
+ * proxy/access logs. Comparison is timing-safe.
  */
 export function verifyWebhookSecret(req) {
   const configuredSecret = process.env.WEBHOOK_SECRET;
-  if (!configuredSecret) return true; // No secret configured — allow all
+  if (!configuredSecret) return false; // Fail closed — no secret, no webhooks
 
   const incoming =
     req.headers['x-webhook-secret'] ||
     req.headers['x-nexmind-secret'] ||
-    req.query?.secret;
+    '';
 
-  return incoming === configuredSecret;
+  const a = Buffer.from(String(incoming));
+  const b = Buffer.from(String(configuredSecret));
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
 }
 
 // ── Payload normalization ─────────────────────────────────────────────────────
@@ -94,6 +100,9 @@ export function normalizePayload(raw) {
  * @param {string} mimeType  - MIME type from Nextcloud
  * @returns {Promise<{ok: boolean, entityCount: number, fileId: string}>}
  */
+// Files currently being processed — prevents concurrent duplicate processing
+const inFlight = new Set();
+
 export async function processNextcloudFile(filePath, fileName, mimeType) {
   const startAt = Date.now();
   console.log(`[webhook] Processing: ${filePath}`);
@@ -104,6 +113,13 @@ export async function processNextcloudFile(filePath, fileName, mimeType) {
     console.log(`[webhook] Already processed, skipping: ${filePath}`);
     return { ok: true, skipped: true, fileId: existing.id };
   }
+
+  // Guard against concurrent webhooks for the same file
+  if (inFlight.has(filePath)) {
+    console.log(`[webhook] Already in flight, skipping: ${filePath}`);
+    return { ok: true, skipped: true };
+  }
+  inFlight.add(filePath);
 
   // Save/update file record with "processing" status
   const fileRecord = saveNextcloudFile({
@@ -217,6 +233,8 @@ export async function processNextcloudFile(filePath, fileName, mimeType) {
       error_msg: err.message,
     });
     return { ok: false, fileId: fileRecord.id, error: err.message };
+  } finally {
+    inFlight.delete(filePath);
   }
 }
 

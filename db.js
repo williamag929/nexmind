@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import { v4 as uuidv4 } from 'uuid';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -9,6 +10,7 @@ const DB_PATH = path.join(__dirname, 'db', 'nexmind.db');
 let db;
 
 export function initDB() {
+  fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
   db = new Database(DB_PATH);
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
@@ -137,6 +139,10 @@ export function createRelation(fromId, toId, relationType, meta = {}) {
   return id;
 }
 
+export function getAllRelations() {
+  return db.prepare(`SELECT id, from_id, to_id, relation_type, meta, created_at FROM relations`).all();
+}
+
 export function getRelations(entityId) {
   const outgoing = db.prepare(`
     SELECT r.*, e.type as to_type, e.data as to_data
@@ -262,18 +268,20 @@ export function deleteConversation(id) {
  *           elapsed_ms?, reason? }} fields
  * @returns {{ id, path, name, ... }}
  */
+// Whitelisted columns for dynamic UPDATE clauses — prevents SQL injection via field names
+const NC_FILE_COLUMNS = new Set([
+  'name', 'mime_type', 'size', 'status', 'document_type', 'summary',
+  'entity_count', 'document_id', 'analysis_json', 'error_msg', 'elapsed_ms', 'reason',
+]);
+
 export function saveNextcloudFile(fields) {
   const existing = db.prepare(`SELECT id FROM nextcloud_files WHERE path = ?`).get(fields.path);
 
   if (existing) {
-    // Update all provided fields
-    const sets = Object.keys(fields)
-      .filter(k => k !== 'path')
-      .map(k => `${k} = ?`)
-      .join(', ');
-    const values = Object.keys(fields)
-      .filter(k => k !== 'path')
-      .map(k => fields[k]);
+    // Update all provided (whitelisted) fields
+    const keys = Object.keys(fields).filter(k => NC_FILE_COLUMNS.has(k));
+    const sets = keys.map(k => `${k} = ?`).join(', ');
+    const values = keys.map(k => fields[k]);
 
     db.prepare(
       `UPDATE nextcloud_files SET ${sets}, updated_at = datetime('now') WHERE id = ?`
@@ -295,10 +303,11 @@ export function saveNextcloudFile(fields) {
  * Update specific fields on a nextcloud_files record by id.
  */
 export function updateNextcloudFile(id, fields) {
-  if (!fields || Object.keys(fields).length === 0) return;
+  const keys = Object.keys(fields || {}).filter(k => NC_FILE_COLUMNS.has(k));
+  if (!keys.length) return;
 
-  const sets   = Object.keys(fields).map(k => `${k} = ?`).join(', ');
-  const values = Object.values(fields);
+  const sets   = keys.map(k => `${k} = ?`).join(', ');
+  const values = keys.map(k => fields[k]);
 
   db.prepare(
     `UPDATE nextcloud_files SET ${sets}, updated_at = datetime('now') WHERE id = ?`

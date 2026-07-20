@@ -25,8 +25,10 @@ No test suite or linter is configured.
 
 Copy `.env.example` to `.env` and populate:
 - `ANTHROPIC_API_KEY` — required for all AI features
+- `API_TOKEN` — bearer token required on all `/api` routes (unauthenticated if unset — local dev only)
+- `CLAUDE_MODEL` — Claude model ID used everywhere (default `claude-sonnet-4-20250514`)
 - `NEXTCLOUD_*` / `MYSQL_*` — required only if using Nextcloud integration
-- `WEBHOOK_SECRET` — optional; enables signature validation on Nextcloud webhooks
+- `WEBHOOK_SECRET` — REQUIRED for Nextcloud webhooks; requests are rejected if unset (fail closed)
 
 ## Architecture
 
@@ -57,8 +59,9 @@ Supporting tables: `memory_log`, `conversations`, `nextcloud_files`.
 - The frontend is a single-file SPA (`public/index.html`) with vanilla JS, dark theme, and bilingual (ES/EN) support controlled by a runtime toggle that switches the Claude system prompt language.
 
 ### Claude API Usage
-- Model: `claude-sonnet-4-20250514`
-- Chat streaming: SSE via `stream: true`
-- Entity extraction: separate non-streaming call with JSON response
-- Document analysis: `claude-sonnet-4-20250514` with `max_tokens: 2048`
-- No prompt caching is currently used
+- Model: `CLAUDE_MODEL` env var (default `claude-sonnet-4-20250514`) — used for chat, extraction, and document analysis
+- Chat streaming: SSE via `stream: true`, buffered line parsing (events can span chunks)
+- Entity extraction: separate non-streaming call with JSON response; only `create`/`update` actions are honored (no LLM-driven deletes — prompt-injection safety)
+- Document analysis: `max_tokens: 4096`, 20MB file size limit
+- Prompt caching: all system prompts sent with `cache_control: ephemeral`
+- Chat history sent to Claude is truncated to `MAX_HISTORY` (default 30) messages; full history is stored in SQLite
