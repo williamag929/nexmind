@@ -1300,6 +1300,12 @@ textarea#chatInput::placeholder { color: var(--text-muted); }
       <button class="lang-btn active" onclick="setLang('es')">ES</button>
       <button class="lang-btn" onclick="setLang('en')">EN</button>
     </div>
+    <button id="user-menu-btn" class="nav-btn" onclick="toggleUserMenu()" style="margin-left:8px;padding:4px 10px;font-size:12px;">
+      <span data-ic="user"></span> <span id="user-email-display" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+    </button>
+    <div id="user-menu" style="display:none;position:absolute;right:12px;top:48px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);padding:8px 0;z-index:999;min-width:180px;">
+      <button onclick="logout()" style="width:100%;text-align:left;padding:8px 16px;background:none;border:none;color:var(--red);cursor:pointer;font-size:13px;">⎋ Logout</button>
+    </div>
   </div>
 </div>
 
@@ -1543,6 +1549,40 @@ textarea#chatInput::placeholder { color: var(--text-muted); }
 <div class="toast-container" id="toasts"></div>
 
 <script>
+// ── Auth check — redirect to login if not authenticated ───
+let currentUser = null;
+(async function checkAuth() {
+  try {
+    const res = await fetch('/api/auth/me');
+    if (!res.ok) {
+      window.location.href = '/login.html';
+      return;
+    }
+    currentUser = await res.json();
+    const emailDisplay = document.getElementById('user-email-display');
+    if (emailDisplay) emailDisplay.textContent = currentUser.email;
+  } catch {
+    window.location.href = '/login.html';
+  }
+})();
+
+function toggleUserMenu() {
+  const menu = document.getElementById('user-menu');
+  menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('user-menu');
+  const btn = document.getElementById('user-menu-btn');
+  if (menu && !menu.contains(e.target) && !btn.contains(e.target)) {
+    menu.style.display = 'none';
+  }
+});
+
+async function logout() {
+  await fetch('/api/auth/logout', { method: 'POST' });
+  window.location.href = '/login.html';
+}
+
 // ── Icon system (lucide-style inline SVG) ──────────────────
 const ICONS = {
   home: '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
