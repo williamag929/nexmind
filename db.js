@@ -177,6 +177,13 @@ export function getEntity(id, userId) {
   return { ...row, data: JSON.parse(row.data) };
 }
 
+/** Admin-only: get entity without user scoping (used internally for relation validation) */
+export function getEntityInternal(id) {
+  const row = db.prepare(`SELECT * FROM entities WHERE id=?`).get(id);
+  if (!row) return null;
+  return { ...row, data: JSON.parse(row.data) };
+}
+
 export function getEntitiesByType(type, userId) {
   return db.prepare(`SELECT * FROM entities WHERE type=? AND user_id=? ORDER BY updated_at DESC`).all(type, userId)
     .map(r => ({ ...r, data: JSON.parse(r.data) }));

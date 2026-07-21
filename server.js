@@ -179,7 +179,7 @@ app.use('/api', (req, res, next) => {
 app.use('/api', apiLimiter);
 
 // ── Protected auth routes (need userId) ───────────────────
-app.put('/api/auth/password', async (req, res) => {
+app.put('/api/auth/password', authLimiter, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body || {};
     if (!currentPassword || !newPassword) {
@@ -217,7 +217,7 @@ app.put('/api/auth/settings', (req, res) => {
   res.json({ ok: true, settings: merged });
 });
 
-app.delete('/api/auth/account', async (req, res) => {
+app.delete('/api/auth/account', authLimiter, async (req, res) => {
   try {
     const { password } = req.body || {};
     if (!password) return res.status(400).json({ error: 'Password confirmation required' });
@@ -356,7 +356,7 @@ app.post('/api/memory/review/:id/confirm', (req, res) => {
 
 app.post('/api/memory/review/:id/discard', (req, res) => {
   const r = pendingReviews.get(req.params.id);
-  if (r && r.userId !== req.userId) return res.status(404).json({ error: 'Review not found or expired' });
+  if (!r || r.userId !== req.userId) return res.status(404).json({ error: 'Review not found or expired' });
   pendingReviews.delete(req.params.id);
   res.json({ ok: true });
 });
