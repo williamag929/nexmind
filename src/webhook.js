@@ -103,23 +103,24 @@ export function normalizePayload(raw) {
 // Files currently being processed — prevents concurrent duplicate processing
 const inFlight = new Set();
 
-export async function processNextcloudFile(filePath, fileName, mimeType) {
+export async function processNextcloudFile(filePath, fileName, mimeType, userId) {
   const startAt = Date.now();
-  console.log(`[webhook] Processing: ${filePath}`);
+  console.log(`[webhook] Processing: ${filePath} for user ${userId}`);
 
   // Check if this file was already processed (avoid duplicates)
-  const existing = getNextcloudFileByPath(filePath);
+  const existing = getNextcloudFileByPath(filePath, userId);
   if (existing?.status === 'done') {
     console.log(`[webhook] Already processed, skipping: ${filePath}`);
     return { ok: true, skipped: true, fileId: existing.id };
   }
 
   // Guard against concurrent webhooks for the same file
-  if (inFlight.has(filePath)) {
+  const flightKey = `${userId}:${filePath}`;
+  if (inFlight.has(flightKey)) {
     console.log(`[webhook] Already in flight, skipping: ${filePath}`);
     return { ok: true, skipped: true };
   }
-  inFlight.add(filePath);
+  inFlight.add(flightKey);
 
   // Save/update file record with "processing" status
   const fileRecord = saveNextcloudFile({
@@ -127,7 +128,7 @@ export async function processNextcloudFile(filePath, fileName, mimeType) {
     name:      fileName,
     mime_type: mimeType,
     status:    'processing',
-  });
+  }, userId);
 
   try {
     // ── Step 1: Download from Nextcloud ──────────────────────────────────────
@@ -159,14 +160,14 @@ export async function processNextcloudFile(filePath, fileName, mimeType) {
       nextcloud_path: filePath,
       analyzed_at:   analysis.analyzed_at,
       reference:     analysis.metadata?.reference_number,
-    });
+    }, userId);
     createdIds['__document__'] = docEntity.id;
 
     // Create all extracted entities
     for (const entity of analysis.entities) {
       if (!entity.type || !entity.data) continue;
       try {
-        const created = createEntity(entity.type, entity.data);
+        const created = createEntity(entity.type, entity.data, userId);
         if (entity.tempId) createdIds[entity.tempId] = created.id;
       } catch (err) {
         console.error(`[webhook] Failed to create ${entity.type}:`, err.message);
@@ -179,7 +180,7 @@ export async function processNextcloudFile(filePath, fileName, mimeType) {
       const toId   = createdIds[rel.to_temp_id];
       if (fromId && toId) {
         try {
-          createRelation(fromId, toId, rel.type || 'related_to');
+          createRelation(fromId, toId, rel.type || 'related_to', {}, userId);
         } catch (err) {
           console.error(`[webhook] Failed to create relation:`, err.message);
         }
@@ -193,16 +194,16 @@ export async function processNextcloudFile(filePath, fileName, mimeType) {
     const firstTxn     = analysis.entities.find(e => e.type === 'transaction' && e.tempId);
 
     if (firstContact && createdIds[firstContact.tempId]) {
-      createRelation(docEntity.id, createdIds[firstContact.tempId], 'related_to');
+      createRelation(docEntity.id, createdIds[firstContact.tempId], 'related_to', {}, userId);
     }
     if (firstCompany && createdIds[firstCompany.tempId]) {
-      createRelation(docEntity.id, createdIds[firstCompany.tempId], 'related_to');
+      createRelation(docEntity.id, createdIds[firstCompany.tempId], 'related_to', {}, userId);
     }
     if (firstProject && createdIds[firstProject.tempId]) {
-      createRelation(docEntity.id, createdIds[firstProject.tempId], 'part_of');
+      createRelation(docEntity.id, createdIds[firstProject.tempId], 'part_of', {}, userId);
     }
     if (firstTxn && createdIds[firstTxn.tempId]) {
-      createRelation(docEntity.id, createdIds[firstTxn.tempId], 'related_to');
+      createRelation(docEntity.id, createdIds[firstTxn.tempId], 'related_to', {}, userId);
     }
 
     const elapsedMs = Date.now() - startAt;
@@ -234,7 +235,7 @@ export async function processNextcloudFile(filePath, fileName, mimeType) {
     });
     return { ok: false, fileId: fileRecord.id, error: err.message };
   } finally {
-    inFlight.delete(filePath);
+    inFlight.delete(`${userId}:${filePath}`);
   }
 }
 

@@ -16,23 +16,42 @@ export function initDB() {
   db.pragma('foreign_keys = ON');
 
   db.exec(`
+    -- Users table
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      email_verified INTEGER DEFAULT 0,
+      verification_token TEXT,
+      reset_token TEXT,
+      reset_token_expires TEXT,
+      webhook_secret TEXT,
+      settings TEXT DEFAULT '{}',
+      created_at TEXT DEFAULT (datetime('now')),
+      last_login TEXT
+    );
+
     -- Core entities table (polymorphic)
     CREATE TABLE IF NOT EXISTS entities (
       id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
       type TEXT NOT NULL, -- contact, company, event, task, transaction, project, document
       data TEXT NOT NULL, -- JSON blob
       created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now'))
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
     -- Relations graph
     CREATE TABLE IF NOT EXISTS relations (
       id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
       from_id TEXT NOT NULL,
       to_id TEXT NOT NULL,
       relation_type TEXT NOT NULL, -- works_at, owns, attended, paid, assigned_to, etc
       meta TEXT, -- JSON extra data
       created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY(from_id) REFERENCES entities(id) ON DELETE CASCADE,
       FOREIGN KEY(to_id) REFERENCES entities(id) ON DELETE CASCADE
     );
@@ -40,49 +59,60 @@ export function initDB() {
     -- Memory log (what Claude extracted from conversations)
     CREATE TABLE IF NOT EXISTS memory_log (
       id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
       conversation_id TEXT,
       user_message TEXT,
       extracted TEXT, -- JSON: what was extracted
-      created_at TEXT DEFAULT (datetime('now'))
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
     -- Conversations
     CREATE TABLE IF NOT EXISTS conversations (
       id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
       title TEXT,
       messages TEXT DEFAULT '[]',
       created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now'))
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
     -- Nextcloud file tracking table
-    -- Records every file received via webhook and its analysis status/results
     CREATE TABLE IF NOT EXISTS nextcloud_files (
       id            TEXT PRIMARY KEY,
-      path          TEXT UNIQUE NOT NULL,  -- Nextcloud path e.g. /Documents/invoice.pdf
+      user_id       TEXT NOT NULL,
+      path          TEXT NOT NULL,
       name          TEXT NOT NULL,
       mime_type     TEXT,
       size          INTEGER,
       status        TEXT DEFAULT 'pending', -- pending | processing | done | skipped | error
-      document_type TEXT,                   -- invoice | contract | receipt | other
+      document_type TEXT,
       summary       TEXT,
       entity_count  INTEGER DEFAULT 0,
-      document_id   TEXT,                   -- FK to entities.id (the linked document entity)
-      analysis_json TEXT,                   -- Full Claude analysis result (JSON blob)
+      document_id   TEXT,
+      analysis_json TEXT,
       error_msg     TEXT,
       elapsed_ms    INTEGER,
       reason        TEXT,
       created_at    TEXT DEFAULT (datetime('now')),
       updated_at    TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY(document_id) REFERENCES entities(id) ON DELETE SET NULL
     );
 
     -- Indexes
-    CREATE INDEX IF NOT EXISTS idx_entities_type   ON entities(type);
-    CREATE INDEX IF NOT EXISTS idx_relations_from  ON relations(from_id);
-    CREATE INDEX IF NOT EXISTS idx_relations_to    ON relations(to_id);
-    CREATE INDEX IF NOT EXISTS idx_nc_files_status ON nextcloud_files(status);
-    CREATE INDEX IF NOT EXISTS idx_nc_files_path   ON nextcloud_files(path);
+    CREATE INDEX IF NOT EXISTS idx_users_email        ON users(email);
+    CREATE INDEX IF NOT EXISTS idx_entities_user_type ON entities(user_id, type);
+    CREATE INDEX IF NOT EXISTS idx_entities_type      ON entities(type);
+    CREATE INDEX IF NOT EXISTS idx_relations_user     ON relations(user_id);
+    CREATE INDEX IF NOT EXISTS idx_relations_from     ON relations(from_id);
+    CREATE INDEX IF NOT EXISTS idx_relations_to       ON relations(to_id);
+    CREATE INDEX IF NOT EXISTS idx_memory_user        ON memory_log(user_id);
+    CREATE INDEX IF NOT EXISTS idx_conv_user          ON conversations(user_id);
+    CREATE INDEX IF NOT EXISTS idx_nc_files_user      ON nextcloud_files(user_id);
+    CREATE INDEX IF NOT EXISTS idx_nc_files_status    ON nextcloud_files(status);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_nc_files_path ON nextcloud_files(user_id, path);
   `);
 
   return db;
@@ -90,83 +120,122 @@ export function initDB() {
 
 export function getDB() { return db; }
 
-// ── Entities ──────────────────────────────────────────────
-export function createEntity(type, data) {
-  const id = uuidv4();
-  db.prepare(`INSERT INTO entities (id, type, data) VALUES (?, ?, ?)`).run(id, type, JSON.stringify(data));
-  return { id, type, data };
+// ── Users ─────────────────────────────────────────────────
+export function createUser(id, email, passwordHash) {
+  db.prepare(`INSERT INTO users (id, email, password_hash) VALUES (?, ?, ?)`).run(id, email, passwordHash);
+  return getUserById(id);
 }
 
-export function updateEntity(id, data) {
-  const existing = getEntity(id);
+export function getUserByEmail(email) {
+  return db.prepare(`SELECT * FROM users WHERE email = ?`).get(email) || null;
+}
+
+export function getUserById(id) {
+  const row = db.prepare(`SELECT * FROM users WHERE id = ?`).get(id);
+  if (!row) return null;
+  return { ...row, settings: JSON.parse(row.settings || '{}') };
+}
+
+export function updateUser(id, fields) {
+  const allowed = ['email_verified', 'verification_token', 'reset_token', 'reset_token_expires', 'webhook_secret', 'settings', 'last_login', 'password_hash'];
+  const keys = Object.keys(fields).filter(k => allowed.includes(k));
+  if (!keys.length) return;
+  const sets = keys.map(k => `${k} = ?`).join(', ');
+  const values = keys.map(k => k === 'settings' ? JSON.stringify(fields[k]) : fields[k]);
+  db.prepare(`UPDATE users SET ${sets} WHERE id = ?`).run(...values, id);
+  return getUserById(id);
+}
+
+export function deleteUser(id) {
+  db.prepare(`DELETE FROM users WHERE id = ?`).run(id);
+}
+
+// ── Entities ──────────────────────────────────────────────
+export function createEntity(type, data, userId) {
+  const id = uuidv4();
+  db.prepare(`INSERT INTO entities (id, user_id, type, data) VALUES (?, ?, ?, ?)`).run(id, userId, type, JSON.stringify(data));
+  return { id, type, data, user_id: userId };
+}
+
+export function updateEntity(id, data, userId) {
+  const existing = getEntity(id, userId);
   if (!existing) return null;
   const merged = { ...existing.data, ...data };
-  db.prepare(`UPDATE entities SET data=?, updated_at=datetime('now') WHERE id=?`).run(JSON.stringify(merged), id);
-  return getEntity(id);
+  db.prepare(`UPDATE entities SET data=?, updated_at=datetime('now') WHERE id=? AND user_id=?`).run(JSON.stringify(merged), id, userId);
+  return getEntity(id, userId);
 }
 
-export function deleteEntity(id) {
-  db.prepare(`DELETE FROM entities WHERE id=?`).run(id);
+export function deleteEntity(id, userId) {
+  db.prepare(`DELETE FROM entities WHERE id=? AND user_id=?`).run(id, userId);
 }
 
-export function getEntity(id) {
+export function getEntity(id, userId) {
+  const row = userId
+    ? db.prepare(`SELECT * FROM entities WHERE id=? AND user_id=?`).get(id, userId)
+    : db.prepare(`SELECT * FROM entities WHERE id=?`).get(id);
+  if (!row) return null;
+  return { ...row, data: JSON.parse(row.data) };
+}
+
+/** Admin-only: get entity without user scoping (used internally for relation validation) */
+export function getEntityInternal(id) {
   const row = db.prepare(`SELECT * FROM entities WHERE id=?`).get(id);
   if (!row) return null;
   return { ...row, data: JSON.parse(row.data) };
 }
 
-export function getEntitiesByType(type) {
-  return db.prepare(`SELECT * FROM entities WHERE type=? ORDER BY updated_at DESC`).all(type)
+export function getEntitiesByType(type, userId) {
+  return db.prepare(`SELECT * FROM entities WHERE type=? AND user_id=? ORDER BY updated_at DESC`).all(type, userId)
     .map(r => ({ ...r, data: JSON.parse(r.data) }));
 }
 
-export function searchEntities(query) {
+export function searchEntities(query, userId) {
   const q = `%${query}%`;
-  return db.prepare(`SELECT * FROM entities WHERE data LIKE ? ORDER BY updated_at DESC LIMIT 20`).all(q)
+  return db.prepare(`SELECT * FROM entities WHERE data LIKE ? AND user_id=? ORDER BY updated_at DESC LIMIT 20`).all(q, userId)
     .map(r => ({ ...r, data: JSON.parse(r.data) }));
 }
 
-export function getAllEntities() {
-  return db.prepare(`SELECT * FROM entities ORDER BY updated_at DESC`).all()
+export function getAllEntities(userId) {
+  return db.prepare(`SELECT * FROM entities WHERE user_id=? ORDER BY updated_at DESC`).all(userId)
     .map(r => ({ ...r, data: JSON.parse(r.data) }));
 }
 
 // ── Relations ─────────────────────────────────────────────
-export function createRelation(fromId, toId, relationType, meta = {}) {
+export function createRelation(fromId, toId, relationType, meta = {}, userId) {
   const id = uuidv4();
-  db.prepare(`INSERT OR IGNORE INTO relations (id, from_id, to_id, relation_type, meta) VALUES (?, ?, ?, ?, ?)`)
-    .run(id, fromId, toId, relationType, JSON.stringify(meta));
+  db.prepare(`INSERT OR IGNORE INTO relations (id, user_id, from_id, to_id, relation_type, meta) VALUES (?, ?, ?, ?, ?, ?)`)
+    .run(id, userId, fromId, toId, relationType, JSON.stringify(meta));
   return id;
 }
 
-export function getAllRelations() {
-  return db.prepare(`SELECT id, from_id, to_id, relation_type, meta, created_at FROM relations`).all();
+export function getAllRelations(userId) {
+  return db.prepare(`SELECT id, from_id, to_id, relation_type, meta, created_at FROM relations WHERE user_id=?`).all(userId);
 }
 
-export function getRelations(entityId) {
+export function getRelations(entityId, userId) {
   const outgoing = db.prepare(`
     SELECT r.*, e.type as to_type, e.data as to_data
     FROM relations r JOIN entities e ON r.to_id = e.id
-    WHERE r.from_id = ?
-  `).all(entityId).map(r => ({ ...r, to_data: JSON.parse(r.to_data), meta: r.meta ? JSON.parse(r.meta) : {} }));
+    WHERE r.from_id = ? AND r.user_id = ?
+  `).all(entityId, userId).map(r => ({ ...r, to_data: JSON.parse(r.to_data), meta: r.meta ? JSON.parse(r.meta) : {} }));
 
   const incoming = db.prepare(`
     SELECT r.*, e.type as from_type, e.data as from_data
     FROM relations r JOIN entities e ON r.from_id = e.id
-    WHERE r.to_id = ?
-  `).all(entityId).map(r => ({ ...r, from_data: JSON.parse(r.from_data), meta: r.meta ? JSON.parse(r.meta) : {} }));
+    WHERE r.to_id = ? AND r.user_id = ?
+  `).all(entityId, userId).map(r => ({ ...r, from_data: JSON.parse(r.from_data), meta: r.meta ? JSON.parse(r.meta) : {} }));
 
   return { outgoing, incoming };
 }
 
 // ── Memory context builder ─────────────────────────────────
-export function buildMemoryContext(lang = 'es') {
-  const contacts = getEntitiesByType('contact').slice(0, 20);
-  const companies = getEntitiesByType('company').slice(0, 10);
-  const events = getEntitiesByType('event').slice(0, 10);
-  const tasks = getEntitiesByType('task').filter(t => t.data.status !== 'done').slice(0, 10);
-  const transactions = getEntitiesByType('transaction').slice(0, 20);
-  const projects = getEntitiesByType('project').slice(0, 10);
+export function buildMemoryContext(lang = 'es', userId) {
+  const contacts = getEntitiesByType('contact', userId).slice(0, 20);
+  const companies = getEntitiesByType('company', userId).slice(0, 10);
+  const events = getEntitiesByType('event', userId).slice(0, 10);
+  const tasks = getEntitiesByType('task', userId).filter(t => t.data.status !== 'done').slice(0, 10);
+  const transactions = getEntitiesByType('transaction', userId).slice(0, 20);
+  const projects = getEntitiesByType('project', userId).slice(0, 10);
 
   const totalIncome = transactions.filter(t => t.data.type === 'income').reduce((s, t) => s + (t.data.amount || 0), 0);
   const totalExpense = transactions.filter(t => t.data.type === 'expense').reduce((s, t) => s + (t.data.amount || 0), 0);
@@ -233,29 +302,29 @@ export function buildMemoryContext(lang = 'es') {
 }
 
 // ── Memory log ────────────────────────────────────────────
-export function logMemory(convId, userMsg, extracted) {
-  db.prepare(`INSERT INTO memory_log (id, conversation_id, user_message, extracted) VALUES (?, ?, ?, ?)`)
-    .run(uuidv4(), convId, userMsg, JSON.stringify(extracted));
+export function logMemory(convId, userMsg, extracted, userId) {
+  db.prepare(`INSERT INTO memory_log (id, user_id, conversation_id, user_message, extracted) VALUES (?, ?, ?, ?, ?)`)
+    .run(uuidv4(), userId, convId, userMsg, JSON.stringify(extracted));
 }
 
 // ── Conversations ─────────────────────────────────────────
-export function saveConversation(id, title, messages) {
-  db.prepare(`INSERT OR REPLACE INTO conversations (id, title, messages, updated_at) VALUES (?, ?, ?, datetime('now'))`)
-    .run(id, title, JSON.stringify(messages));
+export function saveConversation(id, title, messages, userId) {
+  db.prepare(`INSERT OR REPLACE INTO conversations (id, user_id, title, messages, updated_at) VALUES (?, ?, ?, ?, datetime('now'))`)
+    .run(id, userId, title, JSON.stringify(messages));
 }
 
-export function getConversation(id) {
-  const row = db.prepare(`SELECT * FROM conversations WHERE id=?`).get(id);
+export function getConversation(id, userId) {
+  const row = db.prepare(`SELECT * FROM conversations WHERE id=? AND user_id=?`).get(id, userId);
   if (!row) return null;
   return { ...row, messages: JSON.parse(row.messages) };
 }
 
-export function getConversations() {
-  return db.prepare(`SELECT id, title, created_at, updated_at FROM conversations ORDER BY updated_at DESC LIMIT 50`).all();
+export function getConversations(userId) {
+  return db.prepare(`SELECT id, title, created_at, updated_at FROM conversations WHERE user_id=? ORDER BY updated_at DESC LIMIT 50`).all(userId);
 }
 
-export function deleteConversation(id) {
-  db.prepare(`DELETE FROM conversations WHERE id=?`).run(id);
+export function deleteConversation(id, userId) {
+  db.prepare(`DELETE FROM conversations WHERE id=? AND user_id=?`).run(id, userId);
 }
 
 // ── Nextcloud Files ───────────────────────────────────────────────────────────
@@ -274,8 +343,8 @@ const NC_FILE_COLUMNS = new Set([
   'entity_count', 'document_id', 'analysis_json', 'error_msg', 'elapsed_ms', 'reason',
 ]);
 
-export function saveNextcloudFile(fields) {
-  const existing = db.prepare(`SELECT id FROM nextcloud_files WHERE path = ?`).get(fields.path);
+export function saveNextcloudFile(fields, userId) {
+  const existing = db.prepare(`SELECT id FROM nextcloud_files WHERE path = ? AND user_id = ?`).get(fields.path, userId);
 
   if (existing) {
     // Update all provided (whitelisted) fields
@@ -287,16 +356,16 @@ export function saveNextcloudFile(fields) {
       `UPDATE nextcloud_files SET ${sets}, updated_at = datetime('now') WHERE id = ?`
     ).run(...values, existing.id);
 
-    return getNextcloudFile(existing.id);
+    return getNextcloudFile(existing.id, userId);
   }
 
   const id = uuidv4();
   db.prepare(`
-    INSERT INTO nextcloud_files (id, path, name, mime_type, status)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(id, fields.path, fields.name, fields.mime_type || '', fields.status || 'pending');
+    INSERT INTO nextcloud_files (id, user_id, path, name, mime_type, status)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(id, userId, fields.path, fields.name, fields.mime_type || '', fields.status || 'pending');
 
-  return getNextcloudFile(id);
+  return getNextcloudFile(id, userId);
 }
 
 /**
@@ -319,15 +388,18 @@ export function updateNextcloudFile(id, fields) {
 /**
  * Fetch a single nextcloud_files record by id.
  */
-export function getNextcloudFile(id) {
+export function getNextcloudFile(id, userId) {
+  if (userId) {
+    return db.prepare(`SELECT * FROM nextcloud_files WHERE id = ? AND user_id = ?`).get(id, userId) || null;
+  }
   return db.prepare(`SELECT * FROM nextcloud_files WHERE id = ?`).get(id) || null;
 }
 
 /**
  * Fetch a nextcloud_files record by Nextcloud path.
  */
-export function getNextcloudFileByPath(path) {
-  return db.prepare(`SELECT * FROM nextcloud_files WHERE path = ?`).get(path) || null;
+export function getNextcloudFileByPath(filePath, userId) {
+  return db.prepare(`SELECT * FROM nextcloud_files WHERE path = ? AND user_id = ?`).get(filePath, userId) || null;
 }
 
 /**
@@ -335,24 +407,24 @@ export function getNextcloudFileByPath(path) {
  * @param {string|null} status - 'done' | 'error' | 'processing' | null (all)
  * @param {number} limit
  */
-export function listNextcloudFiles(status = null, limit = 100) {
+export function listNextcloudFiles(status = null, limit = 100, userId) {
   if (status) {
     return db.prepare(
-      `SELECT * FROM nextcloud_files WHERE status = ? ORDER BY updated_at DESC LIMIT ?`
-    ).all(status, limit);
+      `SELECT * FROM nextcloud_files WHERE status = ? AND user_id = ? ORDER BY updated_at DESC LIMIT ?`
+    ).all(status, userId, limit);
   }
   return db.prepare(
-    `SELECT * FROM nextcloud_files ORDER BY updated_at DESC LIMIT ?`
-  ).all(limit);
+    `SELECT * FROM nextcloud_files WHERE user_id = ? ORDER BY updated_at DESC LIMIT ?`
+  ).all(userId, limit);
 }
 
 /**
  * Summary statistics for the Nextcloud files dashboard.
  */
-export function nextcloudFileStats() {
+export function nextcloudFileStats(userId) {
   const rows = db.prepare(
-    `SELECT status, COUNT(*) as count FROM nextcloud_files GROUP BY status`
-  ).all();
+    `SELECT status, COUNT(*) as count FROM nextcloud_files WHERE user_id = ? GROUP BY status`
+  ).all(userId);
 
   const stats = { total: 0, done: 0, error: 0, processing: 0, skipped: 0, pending: 0 };
   for (const r of rows) {

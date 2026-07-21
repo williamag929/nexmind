@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NexMind — Login</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f0f23;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .auth-container {
+      width: 100%;
+      max-width: 420px;
+      padding: 2rem;
+    }
+    .logo {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .logo h1 {
+      font-size: 2.5rem;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .logo p {
+      color: #888;
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+    }
+    .auth-card {
+      background: #1a1a2e;
+      border-radius: 12px;
+      padding: 2rem;
+      border: 1px solid #2a2a4a;
+    }
+    .auth-card h2 {
+      margin-bottom: 1.5rem;
+      font-size: 1.3rem;
+      color: #fff;
+    }
+    .form-group {
+      margin-bottom: 1.2rem;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 0.4rem;
+      font-size: 0.85rem;
+      color: #aaa;
+    }
+    .form-group input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      border: 1px solid #333;
+      background: #0f0f23;
+      color: #e0e0e0;
+      font-size: 1rem;
+      transition: border-color 0.2s;
+    }
+    .form-group input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    .btn-primary {
+      width: 100%;
+      padding: 0.85rem;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      margin-top: 0.5rem;
+    }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .switch-form {
+      text-align: center;
+      margin-top: 1.2rem;
+      font-size: 0.9rem;
+      color: #888;
+    }
+    .switch-form a {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .switch-form a:hover { text-decoration: underline; }
+    .error-msg {
+      background: #3d1515;
+      border: 1px solid #6b2020;
+      color: #ff6b6b;
+      padding: 0.7rem 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      font-size: 0.85rem;
+      display: none;
+    }
+    .error-msg.visible { display: block; }
+    .success-msg {
+      background: #153d1f;
+      border: 1px solid #206b30;
+      color: #6bff8b;
+      padding: 0.7rem 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      font-size: 0.85rem;
+      display: none;
+    }
+    .success-msg.visible { display: block; }
+  </style>
+</head>
+<body>
+  <div class="auth-container">
+    <div class="logo">
+      <h1>🧠 NexMind</h1>
+      <p>Your personal AI memory</p>
+    </div>
+
+    <!-- Login Form -->
+    <div id="login-view" class="auth-card">
+      <h2>Sign In</h2>
+      <div id="login-error" class="error-msg"></div>
+      <form id="login-form">
+        <div class="form-group">
+          <label for="login-email">Email</label>
+          <input type="email" id="login-email" autocomplete="email" required>
+        </div>
+        <div class="form-group">
+          <label for="login-password">Password</label>
+          <input type="password" id="login-password" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="btn-primary" id="login-btn">Sign In</button>
+      </form>
+      <div class="switch-form">
+        Don't have an account? <a href="#" id="show-register">Create one</a>
+      </div>
+    </div>
+
+    <!-- Register Form -->
+    <div id="register-view" class="auth-card" style="display:none">
+      <h2>Create Account</h2>
+      <div id="register-error" class="error-msg"></div>
+      <div id="register-success" class="success-msg"></div>
+      <form id="register-form">
+        <div class="form-group">
+          <label for="register-email">Email</label>
+          <input type="email" id="register-email" autocomplete="email" required>
+        </div>
+        <div class="form-group">
+          <label for="register-password">Password (min 8 characters)</label>
+          <input type="password" id="register-password" autocomplete="new-password" minlength="8" required>
+        </div>
+        <div class="form-group">
+          <label for="register-confirm">Confirm Password</label>
+          <input type="password" id="register-confirm" autocomplete="new-password" minlength="8" required>
+        </div>
+        <button type="submit" class="btn-primary" id="register-btn">Create Account</button>
+      </form>
+      <div class="switch-form">
+        Already have an account? <a href="#" id="show-login">Sign In</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Check if already authenticated
+    (async function checkAuth() {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+          window.location.href = '/';
+        }
+      } catch {}
+    })();
+
+    // Toggle views
+    document.getElementById('show-register').addEventListener('click', (e) => {
+      e.preventDefault();
+      document.getElementById('login-view').style.display = 'none';
+      document.getElementById('register-view').style.display = 'block';
+    });
+    document.getElementById('show-login').addEventListener('click', (e) => {
+      e.preventDefault();
+      document.getElementById('register-view').style.display = 'none';
+      document.getElementById('login-view').style.display = 'block';
+    });
+
+    // Login
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('login-btn');
+      const errEl = document.getElementById('login-error');
+      errEl.classList.remove('visible');
+      btn.disabled = true;
+      btn.textContent = 'Signing in...';
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: document.getElementById('login-email').value,
+            password: document.getElementById('login-password').value,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          errEl.textContent = data.error || 'Login failed';
+          errEl.classList.add('visible');
+        } else {
+          window.location.href = '/';
+        }
+      } catch (err) {
+        errEl.textContent = 'Network error. Please try again.';
+        errEl.classList.add('visible');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Sign In';
+      }
+    });
+
+    // Register
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('register-btn');
+      const errEl = document.getElementById('register-error');
+      const successEl = document.getElementById('register-success');
+      errEl.classList.remove('visible');
+      successEl.classList.remove('visible');
+
+      const password = document.getElementById('register-password').value;
+      const confirm = document.getElementById('register-confirm').value;
+
+      if (password !== confirm) {
+        errEl.textContent = 'Passwords do not match';
+        errEl.classList.add('visible');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Creating account...';
+
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: document.getElementById('register-email').value,
+            password,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          errEl.textContent = data.error || 'Registration failed';
+          errEl.classList.add('visible');
+        } else {
+          window.location.href = '/';
+        }
+      } catch (err) {
+        errEl.textContent = 'Network error. Please try again.';
+        errEl.classList.add('visible');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Create Account';
+      }
+    });
+  </script>
+</body>
+</html>
