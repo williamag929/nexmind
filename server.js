@@ -349,9 +349,14 @@ app.post('/api/memory/review/:id/confirm', (req, res) => {
   const { indexes } = req.body || {};
   const acceptedSet = Array.isArray(indexes) ? new Set(indexes.filter(i => Number.isInteger(i))) : null;
 
-  const count = persistExtraction(r.convId, r.userContent, { entities: r.entities, relations: r.relations }, acceptedSet, req.userId);
-  pendingReviews.delete(req.params.id);
-  res.json({ ok: true, count });
+  try {
+    const count = persistExtraction(r.convId, r.userContent, { entities: r.entities, relations: r.relations }, acceptedSet, req.userId);
+    pendingReviews.delete(req.params.id);
+    res.json({ ok: true, count });
+  } catch (err) {
+    console.error('[memory/review/confirm] Failed:', err.message);
+    res.status(500).json({ error: 'Failed to confirm review' });
+  }
 });
 
 app.post('/api/memory/review/:id/discard', (req, res) => {
@@ -433,7 +438,11 @@ function persistExtraction(convId, userContent, extracted, acceptedIndexes = nul
     }
   }
 
-  logMemory(convId, userContent, extracted, userId);
+  try {
+    logMemory(convId, userContent, extracted, userId);
+  } catch (err) {
+    console.error('[extract] Failed to log memory:', err.message);
+  }
   return count;
 }
 
