@@ -1636,23 +1636,8 @@ function esc(s) {
     ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 }
 
-// ── API auth — attach Bearer token to all /api requests ────
-const _fetch = window.fetch.bind(window);
-let apiToken = localStorage.getItem('nexmind_token') || '';
-window.fetch = async (url, opts = {}) => {
-  if (typeof url !== 'string' || !url.startsWith('/api')) return _fetch(url, opts);
-  const withAuth = (o) => ({ ...o, headers: { ...(o.headers || {}), ...(apiToken ? { Authorization: `Bearer ${apiToken}` } : {}) } });
-  let res = await _fetch(url, withAuth(opts));
-  if (res.status === 401) {
-    const tok = prompt(lang === 'es' ? 'Token de acceso (API_TOKEN del servidor):' : 'Access token (server API_TOKEN):');
-    if (tok) {
-      apiToken = tok.trim();
-      localStorage.setItem('nexmind_token', apiToken);
-      res = await _fetch(url, withAuth(opts));
-    }
-  }
-  return res;
-};
+// ── API auth — session is handled via httpOnly JWT cookie (see login.html) ──
+localStorage.removeItem('nexmind_token');
 
 // ── State ──────────────────────────────────────────────────
 let lang = 'es';
